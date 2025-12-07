@@ -2,7 +2,7 @@ from io import StringIO
 
 from rich.console import Console
 
-from getrich import FilterChooser
+from get_rich import FilterChooser
 
 
 class FakeReader:
@@ -180,7 +180,7 @@ def test_should_exit_hook_forces_early_exit():
 
 def test_filter_chooser_uses_default_styles():
     """Test that FilterChooser applies default styles including filter-specific ones."""
-    from getrich.styles import _merge_styles
+    from get_rich.styles import _merge_styles
 
     chooser = FilterChooser(
         choices=["apple", "banana", "cherry"], console=fake_console()
@@ -211,7 +211,7 @@ def test_filter_chooser_applies_custom_styles():
     assert chooser.styles.selection_caret == "❯"
 
     # Default styles still present for non-overridden keys
-    from getrich.styles import _merge_styles
+    from get_rich.styles import _merge_styles
 
     defaults = _merge_styles()
     assert chooser.styles.header_style == defaults.header_style
@@ -219,7 +219,7 @@ def test_filter_chooser_applies_custom_styles():
 
 def test_filter_cursor_moved_to_styles():
     """Test that filter_cursor is stored in styles, not as an init parameter."""
-    from getrich.styles import _merge_styles
+    from get_rich.styles import _merge_styles
 
     chooser = FilterChooser(choices=["a", "b"], console=fake_console())
 
@@ -238,7 +238,7 @@ def test_filter_cursor_moved_to_styles():
 
 def test_filter_chooser_uses_default_messages():
     """Test that FilterChooser applies default messages."""
-    from getrich.messages import _merge_messages
+    from get_rich.messages import _merge_messages
 
     chooser = FilterChooser(choices=["apple", "banana"], console=fake_console())
     defaults = _merge_messages()
@@ -268,7 +268,7 @@ def test_filter_chooser_applies_custom_messages():
 
 def test_filter_label_moved_to_messages():
     """Test that filter_label is stored in messages, not as an init parameter."""
-    from getrich.messages import _merge_messages
+    from get_rich.messages import _merge_messages
 
     chooser = FilterChooser(choices=["a", "b"], console=fake_console())
 
@@ -330,7 +330,7 @@ def test_filter_chooser_partial_message_override():
     assert chooser.messages.items_count == "{count} entries"
 
     # Other messages still have defaults
-    from getrich.messages import _merge_messages
+    from get_rich.messages import _merge_messages
 
     defaults = _merge_messages()
     assert chooser.messages.filter_label == defaults.filter_label

@@ -1,5 +1,5 @@
 [project]
-name = "getrich"
+name = "get-rich"
 version = "0.1.0"
 description = "Rich-powered terminal controls"
 readme = "README.md"
@@ -7,30 +7,36 @@ requires-python = ">=3.10"
 license = "MIT"
 dependencies = [
 	"docstring-inheritance>=2.3.0",
-	"rich>=13.7.0",
+	"rich>=14.2.0",
 ]
 
 [project.scripts]
-getrich = "getrich.cli:main"
+get_rich = "get_rich.cli:main"
 
 [dependency-groups]
 dev = [
-	"pytest>=9.0.0",
-	"ruff>=0.4.0",
+    "pytest>=9.0.0",
+    "pytest-cov>=7.0.0",
+    "ruff>=0.14.8",
+]
+docs = [
+    "mkdocs-material>=9.7.0",
+    "mkdocstrings>=1.0.0",
+    "mkdocstrings-python>=2.0.0",
 ]
 
 [tool.hatch.build.targets.sdist]
 include = [
-	"src/getrich",
+	"src/get_rich",
 ]
 
 [tool.hatch.build.targets.wheel]
 include = [
-	"src/getrich",
+	"src/get_rich",
 ]
 
 [tool.hatch.build.targets.wheel.sources]
-"src/getrich" = "getrich"
+"src/get_rich" = "get_rich"
 
 [build-system]
 requires = ["hatchling"]

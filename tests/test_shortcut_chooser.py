@@ -3,7 +3,7 @@ from io import StringIO
 import pytest
 from rich.console import Console
 
-from getrich import ShortcutChooser
+from get_rich import ShortcutChooser
 
 
 class FakeReader:
@@ -174,7 +174,7 @@ def test_shortcut_chooser_duplicate_keys_strict():
 
 def test_shortcut_chooser_uses_default_styles():
     """Test that ShortcutChooser applies default styles including shortcut-specific ones."""
-    from getrich.styles import _merge_styles
+    from get_rich.styles import _merge_styles
 
     chooser = ShortcutChooser(choices=["a", "b", "c"], console=fake_console())
     defaults = _merge_styles()
@@ -200,7 +200,7 @@ def test_shortcut_chooser_applies_custom_styles():
     assert chooser.styles.selection_style == "bold cyan on black"
 
     # Default styles still present for non-overridden keys
-    from getrich.styles import _merge_styles
+    from get_rich.styles import _merge_styles
 
     defaults = _merge_styles()
     assert chooser.styles.header_style == defaults.header_style
@@ -213,7 +213,7 @@ def test_shortcut_chooser_applies_custom_styles():
 
 def test_shortcut_chooser_uses_default_messages():
     """Test that ShortcutChooser applies default messages."""
-    from getrich.messages import _merge_messages
+    from get_rich.messages import _merge_messages
 
     chooser = ShortcutChooser(choices=["a", "b", "c"], console=fake_console())
     defaults = _merge_messages()
@@ -283,7 +283,7 @@ def test_shortcut_chooser_partial_message_override():
     assert chooser.messages.shortcut_select_range == "{start}..{end} picks"
 
     # Other messages still have defaults
-    from getrich.messages import _merge_messages
+    from get_rich.messages import _merge_messages
 
     defaults = _merge_messages()
     assert chooser.messages.shortcut_select_key == defaults.shortcut_select_key

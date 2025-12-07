@@ -2,7 +2,7 @@ from io import StringIO
 
 from rich.console import Console
 
-from getrich import Chooser
+from get_rich import Chooser
 
 
 class FakeReader:
@@ -156,7 +156,7 @@ def test_should_exit_hook_forces_early_exit():
 
 def test_chooser_uses_default_styles():
     """Test that Chooser applies default styles."""
-    from getrich.styles import _merge_styles
+    from get_rich.styles import _merge_styles
 
     chooser = Chooser(choices=["a", "b", "c"], console=fake_console())
     defaults = _merge_styles()
@@ -187,7 +187,7 @@ def test_chooser_applies_custom_styles():
     assert chooser.styles.body_style == "blue"
 
     # Default styles are still present for non-overridden keys
-    from getrich.styles import _merge_styles
+    from get_rich.styles import _merge_styles
 
     defaults = _merge_styles()
     assert chooser.styles.header_style == defaults.header_style
@@ -203,7 +203,7 @@ def test_chooser_partial_style_override():
     assert chooser.styles.selection_caret == "★"
 
     # All other styles still have defaults
-    from getrich.styles import _merge_styles
+    from get_rich.styles import _merge_styles
 
     defaults = _merge_styles()
     assert chooser.styles.selection_style == defaults.selection_style
@@ -218,7 +218,7 @@ def test_chooser_partial_style_override():
 
 def test_chooser_uses_default_messages():
     """Test that Chooser applies default messages."""
-    from getrich.messages import _merge_messages
+    from get_rich.messages import _merge_messages
 
     chooser = Chooser(choices=["a", "b", "c"], console=fake_console())
     defaults = _merge_messages()
@@ -272,7 +272,7 @@ def test_chooser_partial_message_override():
     assert chooser.messages.instructions == "Press Enter to select"
 
     # All other messages still have defaults
-    from getrich.messages import _merge_messages
+    from get_rich.messages import _merge_messages
 
     defaults = _merge_messages()
     assert chooser.messages.filter_label == defaults.filter_label
