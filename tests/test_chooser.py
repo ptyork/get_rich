@@ -59,7 +59,7 @@ def test_cancel_returns_none():
 def test_on_change_hook_called_on_selection_change():
     change_count = [0]
 
-    def on_change():
+    def on_change(control):
         change_count[0] += 1
 
     reader = FakeReader(["DOWN_ARROW", "DOWN_ARROW", "ENTER"])
@@ -80,11 +80,11 @@ def test_on_change_hook_called_on_selection_change():
 def test_before_and_after_run_hooks():
     events = []
 
-    def before():
+    def before(control):
         events.append("before")
 
-    def after(result):
-        events.append(("after", result))
+    def after(control):
+        events.append(("after", control.result))
 
     reader = FakeReader(["ENTER"])
     chooser = Chooser(
@@ -103,7 +103,7 @@ def test_before_and_after_run_hooks():
 def test_on_key_hook_intercepts_and_skips():
     intercepted_keys = []
 
-    def on_key(key):
+    def on_key(key, control):
         intercepted_keys.append(key)
         # Return None to skip default processing
         if key == "x":
@@ -129,7 +129,7 @@ def test_on_key_hook_intercepts_and_skips():
 def test_should_exit_hook_forces_early_exit():
     exit_count = 0
 
-    def should_exit():
+    def should_exit(control):
         nonlocal exit_count
         exit_count += 1
         # Exit on first call
@@ -334,7 +334,7 @@ def test_chooser_unicode_choices_and_messages():
     _ = chooser.run(reader=reader)
     # Check that the unicode is present in the config
     assert "🚀" in chooser.messages.nav_instructions
-    assert "🍕" in [str(c) for c in chooser.choices]
+    assert "🍕" in [str(c.value) for c in chooser.all_choices]
 
 
 def test_chooser_on_key_and_hooks():
@@ -347,20 +347,20 @@ def test_chooser_on_key_and_hooks():
         "exit": False,
     }
 
-    def before():
+    def before(control):
         called["before"] = True
 
-    def after(res):
+    def after(control):
         called["after"] = True
 
-    def change():
+    def change(control):
         called["change"] = True
 
-    def key(k):
+    def key(k, control):
         called["key"] = True
         return k
 
-    def exit():
+    def exit(control):
         called["exit"] = True
         return False
 

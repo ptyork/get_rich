@@ -13,20 +13,27 @@ class BaseControl(metaclass=GoogleDocstringInheritanceInitMeta):
     Abstract base class for interactive controls.
 
     Supports lifecycle hooks and callbacks for customization:
-        - before_run:
-            Called before the control enters its main loop.
-        - after_run:
-            Called after the control exits, with the final result.
-        - on_change:
+        - before_run(control):
+            Called once before the control enters its main loop.
+            No return value.
+        - after_run(control):
+            Called once after the control exits its main loop.
+            No return value.
+        - on_change(control):
             Called when the selection or state changes (control-specific).
-        - on_key:
-            Called for every key before default bindings are applied.
-        - on_confirm:
-            Called when user confirms a selection. Return False to cancel and
-            continue.
-        - should_exit:
-            Called to check if the control should exit (e.g., for custom quit
-            logic).
+            No return value.
+        - on_key(key, control):
+            Called for every key press before default bindings are applied.
+            Return None to skip default key processing, or return a string
+            (possibly modified) to continue processing with that key.
+        - on_confirm(control):
+            Called when user confirms a selection.
+            Return True to accept the selection and exit, or False to reject
+            and continue the control loop.
+        - should_exit(control):
+            Called at the start of each loop iteration to check if the control
+            should exit early (e.g., for custom quit logic).
+            Return True to exit immediately, or False to continue.
     """
 
     DEFAULT_KEYBINDINGS: dict[str, Sequence[str]] = {}
@@ -38,12 +45,12 @@ class BaseControl(metaclass=GoogleDocstringInheritanceInitMeta):
         transient: bool = True,
         keybindings: dict[str, Sequence[str]] | None = None,
         reader: KeyReader | None = None,
-        before_run: Callable[[], None] | None = None,
-        after_run: Callable[[Any], None] | None = None,
-        on_change: Callable[[], None] | None = None,
-        on_key: Callable[[str], str | None] | None = None,
-        on_confirm: Callable[[Any], bool] | None = None,
-        should_exit: Callable[[], bool] | None = None,
+        before_run: Callable[["BaseControl"], None] | None = None,
+        after_run: Callable[["BaseControl"], None] | None = None,
+        on_change: Callable[["BaseControl"], None] | None = None,
+        on_key: Callable[[str, "BaseControl"], str | None] | None = None,
+        on_confirm: Callable[["BaseControl"], bool] | None = None,
+        should_exit: Callable[["BaseControl"], bool] | None = None,
     ) -> None:
         """Initialize the BaseControl.
 
@@ -56,17 +63,18 @@ class BaseControl(metaclass=GoogleDocstringInheritanceInitMeta):
                 Optional dict of action names to key sequences.
             reader (KeyReader | None):
                 Optional KeyReader to read key inputs.
-            before_run (Callable[[], None] | None):
+            before_run (Callable[[BaseControl], None] | None):
                 Optional callback before running the control.
-            after_run (Callable[[Any], None] | None):
+            after_run (Callable[[BaseControl], None] | None):
                 Optional callback after running the control.
-            on_change (Callable[[], None] | None):
+            on_change (Callable[[BaseControl], None] | None):
                 Optional callback when state changes.
-            on_key (Callable[[str], str | None] | None):
-                Optional callback for each key press.
-            on_confirm (Callable[[Any], bool] | None):
+            on_key (Callable[[str, BaseControl], str | None] | None):
+                Optional callback for each key press. Return None to skip
+                default processing, or return a key string to process.
+            on_confirm (Callable[[BaseControl], bool] | None):
                 Optional callback when user confirms selection.
-            should_exit (Callable[[], bool] | None):
+            should_exit (Callable[[BaseControl], bool] | None):
                 Optional callback to determine if the control should exit.
         """
         self.console = console or Console()

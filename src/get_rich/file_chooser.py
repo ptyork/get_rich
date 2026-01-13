@@ -66,7 +66,8 @@ class FileChooser(FilterChooser):
         title_text: str = "",
         header_text: str = "",
         header_location: str = "inside_top",
-        height: int = 10,
+        height: int | None = None,
+        max_height: int | None = None,
         width: int | None = None,
         selected_index: int | None = None,
         selected_value: str | None = None,
@@ -78,12 +79,12 @@ class FileChooser(FilterChooser):
         console: Console | None = None,
         transient: bool = True,
         reader: KeyReader | None = None,
-        before_run: Callable[[], None] | None = None,
-        after_run: Callable[[tuple[str, int] | None], None] | None = None,
-        on_change: Callable[[], None] | None = None,
-        on_key: Callable[[str], str | None] | None = None,
-        on_confirm: Callable[[str, int], bool] | None = None,
-        should_exit: Callable[[], bool] | None = None,
+        before_run: Callable[["FileChooser"], None] | None = None,
+        after_run: Callable[["FileChooser"], None] | None = None,
+        on_change: Callable[["FileChooser"], None] | None = None,
+        on_key: Callable[[str, "FileChooser"], str | None] | None = None,
+        on_confirm: Callable[["FileChooser"], bool] | None = None,
+        should_exit: Callable[["FileChooser"], bool] | None = None,
     ) -> None:
         """
         Initialize a FileChooser.
@@ -120,14 +121,13 @@ class FileChooser(FilterChooser):
         self.glob: Iterable[str] = glob
         self.auto_filter: bool = auto_filter
 
-        self.on_confirm_param: Callable[[str, int], bool] | None = on_confirm
-
         super().__init__(
             choices=[],
             title_text=title_text,
             header_text=header_text,
             header_location=header_location,
             height=height,
+            max_height=max_height,
             width=width,
             selected_index=selected_index,
             selected_value=selected_value,
@@ -143,7 +143,7 @@ class FileChooser(FilterChooser):
             after_run=after_run,
             on_change=on_change,
             on_key=on_key,
-            on_confirm=self._on_confirm,
+            on_confirm=on_confirm or self._on_confirm,
             should_exit=should_exit,
         )
         # Parent already calls _prepare_choices() which builds file list
@@ -234,15 +234,21 @@ class FileChooser(FilterChooser):
         self.selected_index = selected_index
 
         # Dynamically enable/disable filtering based on list size
-        if self.auto_filter and len(self.all_choices) <= self.height:
-            self.disable_filtering = True
-        else:
-            self.disable_filtering = False
+        # Calculate visible count to determine if filtering is needed
+        if self.auto_filter:
+            visible_count = self._visible_count(self.all_choices, 0)
+            if len(self.all_choices) <= visible_count:
+                self.disable_filtering = True
+            else:
+                self.disable_filtering = False
 
         # Call parent to apply text filtering and build filtered_choices
         super()._prepare_choices()
 
-    def _on_confirm(self, selected_value: str, selected_index: int) -> bool:
+    def _on_confirm(self, chooser: "FileChooser") -> bool:
+        selected_value = str(chooser.selected_value)
+        selected_index = chooser.selected_index
+        
         if self.choose_dirs:
             if selected_index != 0:
                 selected_name = selected_value.split()[0]
@@ -256,8 +262,6 @@ class FileChooser(FilterChooser):
                 # _adjust_to_selection() in main loop will call _prepare_choices()
                 return False
 
-        if self.on_confirm_param:
-            return self.on_confirm_param(selected_value, selected_index)
         return True
 
     def run(self, *, reader: KeyReader | None = None) -> Path | None:  # type: ignore[override]

@@ -135,6 +135,8 @@ class _PosixKeyReader:
                 mapped = self._ESC_MAP.get(seq_bytes)
                 if mapped:
                     return mapped
+                # Unknown escape sequence - ignore it rather than treating as ESC
+                return ""
             return "ESC"
 
         if key == "\x7f":

@@ -64,7 +64,8 @@ class Chooser(BaseControl):
         title_text: str = "",
         header_text: str = "",
         header_location: str = "inside_top",
-        height: int = 10,
+        height: int | None = None,
+        max_height: int | None = None,
         width: int | None = None,
         selected_index: int | None = None,
         selected_value: str | None = None,
@@ -95,8 +96,11 @@ class Chooser(BaseControl):
             header_location (str):
                 Position of header: "inside_top", "outside_top", "inside_left",
                 "outside_left", "inside_right", "outside_right" (default: "inside_top")
-            height (int):
-                Number of visible items in the chooser
+            height (int | None):
+                Absolute height of the control including borders, title, header, and footer.
+                If specified, will pad with blank rows to reach this height. None = auto-size.
+            max_height (int | None):
+                Maximum height constraint without padding. None = use console height.
             width (int | None):
                 Width of the chooser. None = auto-size to content (default),
                 0 = expand to fill screen width, >0 = fixed width in columns.
@@ -133,7 +137,8 @@ class Chooser(BaseControl):
         self.title_text: Text = Text.from_markup(title_text) if title_text else None
         self.header_text: Text = Text.from_markup(header_text, style=self.styles.header_style) if header_text else None
         self.header_location: str = header_location
-        self.height: int = height
+        self.height: int | None = height
+        self.max_height: int | None = max_height
         self.width: int | None = width
         self.messages: _ChooserMessages = _merge_messages(messages)
 
@@ -161,7 +166,7 @@ class Chooser(BaseControl):
                     break
         self.selected_filtered_index = self.selected_index
         self._prepare_choices()
-        self._set_selected()
+        self._set_highlighted()
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -243,7 +248,8 @@ class Chooser(BaseControl):
         self._render_header(choices_table)
 
         # Calculate visible window for scrolling
-        max_items = self._visible_count(display_choices)
+        # Pass current row count so we know what's already in the table
+        max_items = self._visible_count(display_choices, choices_table.row_count)
         total_items = len(display_choices)
 
         if total_items <= max_items:
@@ -292,6 +298,21 @@ class Chooser(BaseControl):
                 style=self.styles.scroll_indicator_style,
             )
             choices_table.add_row(down_text)
+        
+        # Pad with blank rows if absolute height is specified
+        if self.height is not None:
+            # Calculate target rows (height minus borders and footer)
+            target_rows = self.height
+            if self.styles.show_border:
+                target_rows -= 2
+            if self.footer_parts and any(self.footer_parts):
+                target_rows -= 1
+            
+            # Add blank rows to reach target
+            current_rows = choices_table.row_count
+            blank_rows_needed = max(0, target_rows - current_rows)
+            for _ in range(blank_rows_needed):
+                choices_table.add_row(Text(""))
 
         # Wrap with header/footer based on location
         if is_header_inside and is_header_side:
@@ -434,7 +455,7 @@ class Chooser(BaseControl):
             footer_text.justify = "center"
             table.add_row(footer_text, style=self.styles.footer_style)
 
-    def _set_selected(self) -> None:
+    def _set_highlighted(self) -> None:
         display_choices = self._get_display_choices()
         if display_choices:
             self.highlighted_choice = display_choices[self.selected_filtered_index]
@@ -451,7 +472,7 @@ class Chooser(BaseControl):
         for choice in self.all_choices:
             choice.is_highlighted = choice == self.highlighted_choice
         if self.on_change:
-            self.on_change()
+            self.on_change(self)
 
     def _adjust_to_selection(self) -> None:
         """Adjust filtered index to match selected index. Can be overridden by subclasses."""
@@ -461,29 +482,56 @@ class Chooser(BaseControl):
             self.selected_filtered_index = filtered_indices.index(self.selected_index)
         else:
             self.selected_filtered_index = 0
-        self._set_selected()
+        self._set_highlighted()
 
+    ################################################################@##########
+    # UTILITY: _choose
+    ################################################################@##########
     def _visible_count(
-        self, display_choices: list[Chooser.Choice] | None = None
+        self, display_choices: list[Chooser.Choice] | None = None,
+        table_rows_so_far: int = 0
     ) -> int:
+        """Calculate the number of visible item slots based on absolute height constraints.
+        
+        Args:
+            display_choices: List of choices to display
+            table_rows_so_far: Number of rows already in the table (title, header, etc.)
+        """
         if display_choices is None:
             display_choices = self._get_display_choices()
-        base_visible = min(len(display_choices), self.height)
+        
+        # Determine the maximum absolute height
+        if self.height is not None:
+            absolute_height = self.height
+        elif self.max_height is not None:
+            absolute_height = self.max_height
+        else:
+            absolute_height = self.console.height
+        
+        # Calculate available rows for items
+        available_rows = absolute_height
+        
+        # Subtract borders if enabled
+        if self.styles.show_border:
+            available_rows -= 2
+        
+        # Subtract rows already in the table (title, header text, filter row, etc.)
+        available_rows -= table_rows_so_far
+        
+        # Subtract 1 for footer if present
+        if self.footer_parts and any(self.footer_parts):
+            available_rows -= 1
+        
+        # Ensure at least MIN_VISIBLE_WHEN_SCROLLING rows when scrolling is needed
+        if len(display_choices) > available_rows:
+            available_rows = max(available_rows, self.MIN_VISIBLE_WHEN_SCROLLING)
+        
+        return max(1, available_rows)
 
-        if len(display_choices) > self.height:
-            # Keep enough rows to honor the scroll anchor and ensure a usable window
-            required_visible = self.MIN_VISIBLE_WHEN_SCROLLING
-            base_visible = min(
-                len(display_choices),
-                max(base_visible, required_visible),
-            )
-
-        return max(1, base_visible)
-
-    # ------------------------------------------------------------------
-    # Protected API - shared run loop for subclasses
-    # ------------------------------------------------------------------
-    def _run_main_loop(self, reader: KeyReader) -> bool:
+    ################################################################@##########
+    # INTERNAL: _choose
+    ################################################################@##########
+    def _choose(self, reader: KeyReader) -> bool:
         """Run the main event loop until user confirms or cancels.
         
         Returns:
@@ -494,10 +542,14 @@ class Chooser(BaseControl):
         ) as live:
             while True:
                 # Check if we should exit early via custom logic
-                if self.should_exit and self.should_exit():
+                if self.should_exit and self.should_exit(self):
                     return False
 
                 key = reader.read_key()
+
+                # Ignore empty keys (unrecognized sequences, etc.)
+                if not key:
+                    continue
 
                 # If an error overlay is active, clear it on any key press and re-render
                 if getattr(self, "_error_message", None):
@@ -508,7 +560,7 @@ class Chooser(BaseControl):
 
                 # Allow custom on_key handler to intercept or modify the key
                 if self.on_key:
-                    intercepted = self.on_key(key)
+                    intercepted = self.on_key(key, self)
                     if intercepted is None:
                         # Handler requested to skip default processing
                         live.update(self._render())
@@ -523,30 +575,30 @@ class Chooser(BaseControl):
                         self.selected_filtered_index -= 1
                     elif self.wrap_navigation and display_choices:
                         self.selected_filtered_index = len(display_choices) - 1
-                    self._set_selected()
+                    self._set_highlighted()
 
                 elif key in self.keybindings.get("down", []):
                     if self.selected_filtered_index < len(display_choices) - 1:
                         self.selected_filtered_index += 1
                     elif self.wrap_navigation and display_choices:
                         self.selected_filtered_index = 0
-                    self._set_selected()
+                    self._set_highlighted()
 
                 elif key in self.keybindings.get("home", []):
                     self.selected_filtered_index = 0
-                    self._set_selected()
+                    self._set_highlighted()
 
                 elif key in self.keybindings.get("end", []):
                     if display_choices:
                         self.selected_filtered_index = len(display_choices) - 1
-                        self._set_selected()
+                        self._set_highlighted()
 
                 elif key in self.keybindings.get("page_up", []):
                     step = max(1, self._visible_count(display_choices) - 1)
                     self.selected_filtered_index = max(
                         0, self.selected_filtered_index - step
                     )
-                    self._set_selected()
+                    self._set_highlighted()
 
                 elif key in self.keybindings.get("page_down", []):
                     if display_choices:
@@ -555,7 +607,7 @@ class Chooser(BaseControl):
                             len(display_choices) - 1,
                             self.selected_filtered_index + step,
                         )
-                    self._set_selected()
+                    self._set_highlighted()
 
                 elif key in self.keybindings.get("confirm", []):
                     return True
@@ -578,12 +630,12 @@ class Chooser(BaseControl):
     ) -> tuple[str, int] | tuple[None, None]:
         """Run the chooser and return the selected value and index."""
         if self.before_run:
-            self.before_run()
+            self.before_run(self)
 
         self._prepare_choices()
         with reader or self._get_reader() as key_reader:
             while True:
-                confirmed = self._run_main_loop(key_reader)
+                confirmed = self._choose(key_reader)
                 
                 if not confirmed:
                     self.result = (None, None)
@@ -597,21 +649,25 @@ class Chooser(BaseControl):
                 
                 # Call confirmation hook if present
                 if self.on_confirm:
-                    if not self.on_confirm(*self._get_hook_args()):
+                    if not self.on_confirm(self):
                         # Hook wants to continue
                         self._prepare_choices()
                         self._adjust_to_selection()
                         continue
                 
-                # Build and return result
-                self.result = self._build_result()
+                # All good. Let's return.
                 break
 
         if self.after_run:
-            self.after_run(self.result)
+            self.after_run(self)
 
-        return self.result
+        self._set_highlighted()
+        choice = self.highlighted_choice
+        if choice is None:
+            return (None, None)
+        return (str(choice.value), choice.index)
     
+
     def _validate_selection(self) -> str | None:
         """Validate the current selection. Return error message or None.
         
@@ -619,23 +675,6 @@ class Chooser(BaseControl):
         """
         return None
     
-    def _get_hook_args(self) -> tuple[Any, ...]:
-        """Get the arguments to pass to on_confirm hook.
-        
-        Override in subclasses to customize what gets passed to the hook.
-        """
-        return (str(self.selected_value), self.selected_index)
-    
-    def _build_result(self) -> tuple[str, int] | tuple[None, None]:
-        """Build the result to return from run().
-        
-        Override in subclasses to customize the return value.
-        """
-        self._set_selected()
-        if self.selected_value is None:
-            return (None, None)
-        return (str(self.selected_value), self.selected_index)
-
     def _handle_other_key(self, key: str) -> bool:
         """Handle any remaining keys. Can be overridden by subclasses."""
         return False

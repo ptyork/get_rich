@@ -19,7 +19,8 @@ class MultiChooser(Chooser):
         title_text: str = "",
         header_text: str = "",
         header_location: str = "inside_top",
-        height: int = 10,
+        height: int | None = None,
+        max_height: int | None = None,
         width: int | None = None,
         selected_indexes: list[int] | None = None,
         selected_values: list[str] | None = None,
@@ -46,6 +47,7 @@ class MultiChooser(Chooser):
             header_text=header_text,
             header_location=header_location,
             height=height,
+            max_height=max_height,
             width=width,
             wrap_navigation=wrap_navigation,
             styles=styles,
@@ -80,26 +82,33 @@ class MultiChooser(Chooser):
     def _handle_other_key(self, key: str) -> str | None:
         """Handle space to toggle selection of current item."""
         if key == "SPACE":
-            self._set_selected()
+            self._set_highlighted()
             choice = self.highlighted_choice
             choice.is_selected = not choice.is_selected
             if self.on_change:
-                self.on_change()
+                self.on_change(self)
             return None
         return super()._handle_other_key(key)
 
-    def _render_choice_row(self, choice: Chooser.Choice) -> Text:
-        """Render choice row with checkbox."""
-        # Get the base rendering from parent
-        base_row = super()._render_choice_row(choice)
-        
-        # Add checkbox prefix
+    def _render_choice_row(self, choice: Chooser.Choice) -> tuple[Text, str]:
+        """Render choice row with caret, checkbox, and full-row highlighting."""
         checkbox = (
-            self.style.checkbox_checked 
+            self.styles.checkbox_checked 
             if choice.is_selected
-            else self.style.checkbox_unchecked
+            else self.styles.checkbox_unchecked
         )
-        return Text(f"{checkbox} ") + base_row
+        
+        if choice.is_highlighted:
+            # Highlighted: render with caret, checkbox, and selection style applied to entire row
+            choice_text = Text.from_markup(
+                f"{self.styles.selection_caret} {checkbox} {choice.value.markup}",
+                style=self.styles.selection_style,
+            )
+            return choice_text, self.styles.body_style
+        else:
+            # Not highlighted: render with spacing, checkbox, and no selection style
+            choice_text = Text.from_markup(f"  {checkbox} {choice.value.markup}")
+            return choice_text, self.styles.body_style
 
     def _validate_selection(self) -> str | None:
         """Validate that selected count meets constraints."""
@@ -109,14 +118,14 @@ class MultiChooser(Chooser):
 
         if min_sel is not None and max_sel is not None:
             if count < min_sel or count > max_sel:
-                return f"Please select between {min_sel} and {max_sel} items"
+                return self.messages.range_selected_error.format(min=min_sel, max=max_sel)
             return None
 
         if min_sel is not None and count < min_sel:
-            return f"Please select at least {min_sel} items"
+            return self.messages.min_selected_error.format(min=min_sel)
 
         if max_sel is not None and count > max_sel:
-            return f"Please select at most {max_sel} items"
+            return self.messages.max_selected_error.format(max=max_sel)
 
         return None
 
@@ -125,16 +134,16 @@ class MultiChooser(Chooser):
     ) -> tuple[list[str], tuple[int]] | tuple[None, None]:
         """Run the chooser and return the selected value and index."""
 
-        confirmed = self._run_main_loop(reader)
+        # confirmed = self._run_main_loop(reader)
+        sel, _ = super().run(reader=reader)
 
-        if confirmed:
-            values = []
-            indexes = []
-            for choice in self.all_choices:
-                if choice.is_selected:
-                    values.append(choice.value)
-                    indexes.append(choice.index)
-            return values, indexes
-            
-        return (None, None)
-    
+        if not sel:
+            return (None, None)
+
+        values = []
+        indexes = []
+        for choice in self.all_choices:
+            if choice.is_selected:
+                values.append(choice.value)
+                indexes.append(choice.index)
+        return values, indexes

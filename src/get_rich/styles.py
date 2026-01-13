@@ -58,6 +58,9 @@ class ChooserStyles(TypedDict, total=False):
     full_path_style: str
     """Style for displaying full file paths in choices when applicable (FileChooser only)."""
 
+    error_style: str
+    """Style for validation error overlay messages."""
+
 
 @dataclass
 class _ChooserStyles:
@@ -76,8 +79,9 @@ class _ChooserStyles:
     scroll_indicator_down: str = "··· ▼ ···"
     shortcut_prefix_style: str = "grey70"
     full_path_style: str = "grey70"
-    checkbox_checked: str = "☑"
+    checkbox_checked: str = "☒"
     checkbox_unchecked: str = "☐"
+    error_style: str = "bright_white on dark_red"
 
 
 def _merge_styles(

@@ -21,7 +21,8 @@ class ShortcutChooser(Chooser):
         title_text: str = "",
         header_text: str = "",
         header_location: str = "inside_top",
-        height: int = 10,
+        height: int | None = None,
+        max_height: int | None = None,
         width: int | None = None,
         selected_index: int | None = None,
         selected_value: str | None = None,
@@ -75,6 +76,7 @@ class ShortcutChooser(Chooser):
             header_text=header_text,
             header_location=header_location,
             height=height,
+            max_height=max_height,
             width=width,
             selected_index=selected_index,
             selected_value=selected_value,
@@ -149,13 +151,13 @@ class ShortcutChooser(Chooser):
     def _get_display_choices(self) -> list[Chooser.Choice]:
         """Get the list of choices with shortcut_key populated for rendering."""
         display_choices = []
-        for i in range(len(self.choices)):
+        for i in range(len(self.all_choices)):
             display_choices.append(
                 Chooser.Choice(
                     index=i,
-                    value=self.choices[i],
+                    value=self.all_choices[i].value,
                     is_highlighted=(i == self.selected_index),
-                    shortcut_key=self.shortcut_keys[i] if self.show_shortcuts else None
+                    shortcut_key=self.shortcut_keys[i] if (self.show_shortcuts and i < len(self.shortcut_keys)) else None
                 )
             )
         return display_choices
@@ -191,7 +193,7 @@ class ShortcutChooser(Chooser):
         if key in self.shortcut_key_to_index:
             # Set the filtered index to the shortcut's target
             self.selected_filtered_index = self.shortcut_key_to_index[key]
-            self._set_selected()
+            self._set_highlighted()
             if self.no_confirm:
                 # Immediately confirm selection
                 return True

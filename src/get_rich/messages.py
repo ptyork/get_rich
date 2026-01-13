@@ -39,6 +39,16 @@ class ChooserMessages(TypedDict, total=False):
     shortcut_select_key: str
     """Label for selecting by shortcut key."""
 
+    # MultiChooser validation messages
+    min_selected_error: str
+    """Error message when fewer items selected than minimum."""
+
+    max_selected_error: str
+    """Error message when more items selected than maximum."""
+
+    range_selected_error: str
+    """Error message when selected count outside min/max range."""
+
 
 @dataclass
 class _ChooserMessages:
@@ -50,6 +60,9 @@ class _ChooserMessages:
     filtered_from: str = "filtered from"
     shortcut_select_range: str = "Press {start}-{end} to Select"
     shortcut_select_key: str = "Press Highlighted Key to Select"
+    min_selected_error: str = "Please select at least {min} items"
+    max_selected_error: str = "Please select at most {max} items"
+    range_selected_error: str = "Please select between {min} and {max} items"
 
 
 def _merge_messages(

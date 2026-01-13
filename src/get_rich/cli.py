@@ -144,7 +144,7 @@ def min_height_file_chooser() -> None:
         choose_dirs=False,
         title_text="Select a file:",
         header_text="There's a minimum height for scrollable content",
-        height=1,
+        height=10,
         width=60,
     )
     path = file_chooser.run()  # returns a Path object
@@ -267,14 +267,14 @@ def chooser_with_hooks() -> None:
     """Chooser with before_run, after_run, and on_change hooks."""
     counter = {"changes": 0}
     
-    def before():
+    def before(control):
         print("[dim]🔔 Chooser is starting...[/]")
     
-    def after(result):
-        val, idx = result if result else (None, None)
+    def after(control):
+        val, idx = control.result if control.result else (None, None)
         print(f"[dim]🔔 Chooser finished. Changes: {counter['changes']}, Result: {val}[/]")
     
-    def on_change():
+    def on_change(control):
         counter["changes"] += 1
     
     chooser = Chooser(
@@ -710,6 +710,8 @@ def multi_chooser_with_custom_styles() -> None:
         "border_style": "yellow on dark_blue",
         "selection_style": "bold bright_white on blue",
         "footer_style": "yellow",
+        "checkbox_checked": "[✓]",
+        "checkbox_unchecked": "[ ]",
     }
     choices = [
         "Frontend",
@@ -725,8 +727,6 @@ def multi_chooser_with_custom_styles() -> None:
         styles=custom_styles,
         height=8,
         width=50,
-        checkbox_checked="[✓]",
-        checkbox_unchecked="[ ]",
     )
     values, indices = multi_chooser.run()
     if indices is not None:
