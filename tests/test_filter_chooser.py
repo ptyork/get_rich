@@ -358,13 +358,13 @@ def test_filter_chooser_empty_choices_renders_gracefully():
 
 
 def test_filter_chooser_single_choice_select():
-    """Test that FilterChooser with one choice can be selected and instructions are present in config."""
+    """Test that FilterChooser with one choice can be selected and nav instructions are present in config."""
     console = Console(file=StringIO(), force_terminal=True, color_system=None, width=80)
     chooser = FilterChooser(choices=["one"], console=console)
     reader = FakeReader(["ENTER"])
     result = chooser.run(reader=reader)
     assert result == ("one", 0)
-    assert "Navigate" in chooser.messages.instructions
+    assert "Navigate" in chooser.messages.nav_instructions
 
 
 def test_filter_chooser_invalid_styles_and_messages():

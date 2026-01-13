@@ -1,0 +1,641 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Any, Callable, Iterable, Sequence
+
+from rich.align import Align
+from rich.console import Console, RenderableType
+from rich.live import Live
+from rich.panel import Panel
+from rich.table import Table
+from rich.text import Text
+
+from . import BaseControl
+from .key_reader import KeyReader
+from .styles import ChooserStyles, _ChooserStyles, _merge_styles
+from .messages import ChooserMessages, _ChooserMessages, _merge_messages
+
+
+# TODO:
+#   - Add support for multiple columns (automatic up to specified max_cols)
+#   - Add tabular layouts using Craftable library with column defs and headers
+
+
+class Chooser(BaseControl):
+    """A scrollable inline chooser widget using Rich."""
+
+    DEFAULT_KEYBINDINGS: dict[str, Sequence[str]] = {
+        "up": ["UP_ARROW"],
+        "down": ["DOWN_ARROW"],
+        "confirm": ["ENTER"],
+        "cancel": ["ESC", "CTRL_C"],
+        "home": ["HOME"],
+        "end": ["END"],
+        "page_up": ["PAGE_UP"],
+        "page_down": ["PAGE_DOWN"],
+        "backspace": ["BACKSPACE"],
+    }
+
+    SCROLL_TOP_OFFSET = 3
+    MIN_VISIBLE_WHEN_SCROLLING = SCROLL_TOP_OFFSET + 2
+
+    @dataclass
+    class Choice:
+        index: int
+        value: Text
+        is_highlighted: bool = False  # Currently selected/cursor position
+        is_selected: bool = False  # For MultiChooser - checked/selected state
+        shortcut_key: str | None = None  # For ShortcutChooser - shortcut key to display
+
+        def __str__(self) -> str:
+            return str(self.value)
+
+        def __eq__(self, other) -> bool:
+            if isinstance(other, str):
+                return str(self) == other
+            if isinstance(other, Chooser.Choice):
+                return self.value == other.value
+            return False
+
+    def __init__(
+        self,
+        *,
+        choices: Iterable[str],
+        title_text: str = "",
+        header_text: str = "",
+        header_location: str = "inside_top",
+        height: int = 10,
+        width: int | None = None,
+        selected_index: int | None = None,
+        selected_value: str | None = None,
+        wrap_navigation: bool = True,
+        styles: ChooserStyles | dict[str, Any] | None = None,
+        messages: ChooserMessages | dict[str, Any] | None = None,
+        console: Console | None = None,
+        transient: bool = True,
+        keybindings: dict[str, Sequence[str]] | None = None,
+        reader: KeyReader | None = None,
+        before_run: Callable[[], None] | None = None,
+        after_run: Callable[[tuple[str, int] | None], None] | None = None,
+        on_change: Callable[[], None] | None = None,
+        on_key: Callable[[str], str | None] | None = None,
+        on_confirm: Callable[[str, int], bool] | None = None,
+        should_exit: Callable[[], bool] | None = None,
+    ) -> None:
+        """
+        Initialize a Chooser.
+
+        Args:
+            choices (Iterable[str]):
+                List of choice strings
+            title_text (str):
+                Title text displayed at the top of the chooser
+            header_text (str):
+                Header text displayed below the title
+            header_location (str):
+                Position of header: "inside_top", "outside_top", "inside_left",
+                "outside_left", "inside_right", "outside_right" (default: "inside_top")
+            height (int):
+                Number of visible items in the chooser
+            width (int | None):
+                Width of the chooser. None = auto-size to content (default),
+                0 = expand to fill screen width, >0 = fixed width in columns.
+            selected_index (int | None):
+                Optional initial selected index
+            selected_value (str | None):
+                Optional initial selected value (overrides index if found)
+            wrap_navigation (bool):
+                If True, navigation wraps around at ends
+            styles (ChooserStyles | dict[str, Any] | None):
+                Optional styles overrides. See ChooserStyles for defaults.
+            messages (ChooserMessages | dict[str, Any] | None):
+                Optional messages overrides.
+        """
+        super().__init__(
+            console=console,
+            transient=transient,
+            keybindings=keybindings,
+            reader=reader,
+            before_run=before_run,
+            after_run=after_run,
+            on_change=on_change,
+            on_key=on_key,
+            on_confirm=on_confirm,  # type: ignore
+            should_exit=should_exit,
+        )
+
+        self.all_choices: list[Chooser.Choice] = []
+        for i, choice in enumerate(choices):
+            value = Text.from_markup(choice)
+            self.all_choices.append(Chooser.Choice(i,value))
+
+        self.styles: _ChooserStyles = _merge_styles(styles)
+        self.title_text: Text = Text.from_markup(title_text) if title_text else None
+        self.header_text: Text = Text.from_markup(header_text, style=self.styles.header_style) if header_text else None
+        self.header_location: str = header_location
+        self.height: int = height
+        self.width: int | None = width
+        self.messages: _ChooserMessages = _merge_messages(messages)
+
+        self.selected_index: int = 0
+        self.selected_filtered_index: int = 0
+        self.selected_value: Text | None = None
+        self.on_confirm: Callable[[str, int], bool] | None = on_confirm
+
+        self.wrap_navigation = wrap_navigation
+
+        # Footer parts for flexible footer rendering
+        self.footer_parts: list[str] = [
+            self.messages.nav_instructions,
+            self.messages.confirm_instructions,
+        ]
+
+        if selected_index is not None and 0 <= selected_index < len(self.all_choices):
+            self.selected_index = selected_index
+            self.highlighted_choice = self.all_choices[selected_index]
+        elif selected_value:
+            for  choice in self.all_choices:
+                if choice.plain.lower() == selected_value.lower():
+                    self.selected_index = choice.index
+                    self.highlighted_choice = choice
+                    break
+        self.selected_filtered_index = self.selected_index
+        self._prepare_choices()
+        self._set_selected()
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    def _get_display_choices(self) -> list[Chooser.Choice]:
+        """Get the list of choices to display. Can be overridden by subclasses."""
+        return self.all_choices
+
+    def _prepare_choices(self) -> None:
+        """Prepare choices for display. Can be overridden by subclasses for filtering."""
+        pass
+
+    def _render_choice_row(self, choice: Choice) -> tuple[Text, str]:
+        """Render a single choice row. Override to customize display.
+        
+        Args:
+            choice: The choice to render (contains all state: is_highlighted, is_selected, etc.)
+            
+        Returns:
+            tuple of (Text to display, style for the row)
+        """
+        if choice.is_highlighted:
+            caret = self.styles.selection_caret
+            choice_text = Text.from_markup(
+                f"{caret} {choice.value.markup}",
+                style=self.styles.selection_style,
+            )
+            return choice_text, self.styles.body_style
+        else:
+            choice_text = Text.from_markup(f"  {choice.value.markup}")
+            return choice_text, self.styles.body_style
+
+    def _render(self) -> RenderableType:
+        display_choices = self._get_display_choices()
+        
+        # Parse header location
+        is_header_inside = self.header_location.startswith("inside_")
+        is_header_side = "left" in self.header_location or "right" in self.header_location
+        is_header_left = "left" in self.header_location
+        is_header_top = "top" in self.header_location
+        
+        # Determine table sizing based on header configuration
+        if not is_header_inside and is_header_side:
+            # Outside side headers: choices auto-size
+            table_width, expand_table = None, False
+            title_width = 0
+        else:
+            # width=0 means expand, None means auto-size, >0 means fixed
+            border_width = 4 if self.styles.show_border else 0
+            title_width = (len(self.title_text) + 2) if self.title_text else 0
+            table_width = None
+            if self.width:
+                table_width = self.width - border_width
+            expand_table = self.width == 0
+        
+        # Create and populate the choices table
+        choices_table = Table(
+            style=self.styles.body_style,
+            padding=self.styles.option_padding,
+            collapse_padding=True,
+            show_edge=False,
+            show_header=False,
+            expand=expand_table,
+            min_width=title_width,
+        )
+        choices_table.add_column(width=table_width, no_wrap=True)
+
+        # When borderless, render title as part of choices table if present
+        if not self.styles.show_border and self.title_text:
+            self.title_text.justify = "center"
+            self.title_text.style = self.styles.header_style
+            choices_table.add_row(self.title_text)
+
+        # Render inside_top header in the choices table
+        if self.header_text and is_header_inside and is_header_top:
+            choices_table.add_row(self.header_text)
+
+        self._render_header(choices_table)
+
+        # Calculate visible window for scrolling
+        max_items = self._visible_count(display_choices)
+        total_items = len(display_choices)
+
+        if total_items <= max_items:
+            # Everything fits - no scrolling
+            start = 0
+            end = total_items
+            show_up_arrow = show_down_arrow = False
+        else:
+            # Position selection SCROLL_TOP_OFFSET rows from top
+            adjusted_top_offset = min(self.SCROLL_TOP_OFFSET, max_items // 2)
+            start = max(0, self.selected_filtered_index - adjusted_top_offset)
+
+            # Check if arrows will be needed and reserve rows for them
+            show_up_arrow = start > 0
+            show_down_arrow = (start + max_items) < total_items
+
+            # a row for every True arrow -- int(true) = 1
+            arrow_rows = int(show_up_arrow) + int(show_down_arrow)
+
+            # When showing up arrow, skip an extra row so two items scroll under it.
+            # Less awkward and more natural feeling.
+            if show_up_arrow:
+                start += 1
+
+            # Calculate end, ensuring we don't scroll past the bottom
+            choice_rows = max_items - arrow_rows
+            start = min(start, total_items - choice_rows)
+            end = start + choice_rows
+
+        # Optionally render the scroll indicator at the top.
+        if show_up_arrow:
+            up_text = Text.from_markup(
+                "  " + self.styles.scroll_indicator_up,
+                style=self.styles.scroll_indicator_style,
+            )
+            choices_table.add_row(up_text)
+
+        # Render each of the real choices.
+        for i, choice in enumerate(display_choices[start:end]):
+            choice_text, row_style = self._render_choice_row(choice)
+            choices_table.add_row(choice_text, style=row_style)
+
+        if show_down_arrow:
+            down_text = Text.from_markup(
+                "  " + self.styles.scroll_indicator_down,
+                style=self.styles.scroll_indicator_style,
+            )
+            choices_table.add_row(down_text)
+
+        # Wrap with header/footer based on location
+        if is_header_inside and is_header_side:
+            # Inside side header: wrap choices table with header and footer
+            outer = Table.grid(expand=expand_table)
+            outer.add_column()
+            
+            # Header and choices side-by-side
+            inner = Table.grid(expand=expand_table)
+            if is_header_left:
+                inner.add_column(no_wrap=True)
+                inner.add_column(width=table_width, no_wrap=True)
+                inner.add_row(self.header_text, choices_table)
+            else:
+                inner.add_column(width=table_width, no_wrap=True)
+                inner.add_column(no_wrap=True)
+                inner.add_row(choices_table, self.header_text)
+            
+            outer.add_row(inner)
+            if self.messages.instructions:
+                outer.add_row(self.messages.instructions, style=self.styles.footer_style)
+            table = outer
+        else:
+            self._render_footer(choices_table, display_choices)
+            table = choices_table
+        
+        # Apply outside header wrapper if needed
+        if self.header_text and not is_header_inside:
+            if is_header_side:
+                return self._wrap_outside_side_header(table, is_header_left, expand_table, table_width)
+            else:  # outside top header
+                container = Table.grid(expand=expand_table)
+                container.add_column(width=table_width if table_width else None, no_wrap=True)
+                container.add_row(self.header_text)
+                container.add_row(self._wrap_in_panel(table, expand_table, table_width) if self.styles.show_border else table)
+                return container
+        
+        # Return bordered or borderless table
+        renderable = self._wrap_in_panel(table, expand_table, table_width) if self.styles.show_border else table
+        
+        # Check for error message (used by MultiChooser and potentially other subclasses)
+        error_message = getattr(self, "_error_message", None)
+        if error_message:
+            # Calculate height: base table height + 2 if bordered (for panel borders)
+            height = table.row_count if hasattr(table, "row_count") else 0
+            if self.styles.show_border:
+                height += 2
+            
+            # Render overlay panel with error message
+            width = renderable.width if hasattr(renderable, "width") else None
+            message_text = Text.from_markup(error_message)
+            aligned_text = Align(message_text, align="center", vertical="middle")
+            
+            # Try to get error title from messages, fallback to generic
+            error_title = getattr(self.messages, "multi_validation_error", "Error")
+            
+            return Panel(
+                aligned_text,
+                title=error_title,
+                style=self.styles.error_style,
+                width=width,
+                height=height
+            )
+        
+        return renderable
+
+    def _wrap_outside_side_header(
+        self, table: Table, is_left: bool, expand: bool, width: int | None
+    ) -> Table:
+        """Wrap table with outside left/right header."""
+        wrapped_table = self._wrap_in_panel(table, False, None) if self.styles.show_border else table
+        
+        # Fixed width case
+        if self.width is not None and self.width > 0:
+            outer = Table.grid(expand=False)
+            outer.add_column(width=self.width)
+            inner = Table.grid(expand=False, padding=(0, 1))
+            
+            if is_left:
+                inner.add_column(justify="left", ratio=1)
+                inner.add_column()
+                inner.add_row(self.header_text, wrapped_table)
+            else:
+                inner.add_column()
+                inner.add_column(justify="left", ratio=1)
+                inner.add_row(wrapped_table, self.header_text)
+            
+            outer.add_row(inner)
+            return outer
+        
+        # Auto-size case
+        container = Table.grid(expand=expand, padding=(0, 1))
+        container.show_lines = True
+        
+        if is_left:
+            container.add_column(justify="left")
+            container.add_column()
+            container.add_row(self.header_text, self._wrap_in_panel(table, expand, None) if self.styles.show_border else table)
+        else:
+            container.add_column()
+            container.add_column(justify="left")
+            container.add_row(self._wrap_in_panel(table, expand, None) if self.styles.show_border else table, self.header_text)
+        
+        return container
+    
+    def _wrap_in_panel(self, table: Table, expand_table: bool, table_width: int | None) -> Panel:
+        """Wrap the table in a Panel with appropriate settings.
+        
+        Args:
+            table: The table to wrap
+            expand_table: Whether the panel should expand
+            table_width: The width to apply to the panel (None means auto-size, not self.width)
+        """
+        panel_kwargs: dict[str, Any] = {
+            "title": self.title_text,
+            "style": self.styles.body_style,
+            "border_style": self.styles.border_style,
+        }
+
+        # Use table_width parameter instead of self.width for panel sizing
+        # This allows outside headers to control sizing independently
+        panel_kwargs["expand"] = False
+        if expand_table:
+            panel_kwargs["expand"] = True
+        elif table_width:
+            panel_kwargs["width"] = table_width + 4
+
+        return Panel(table, **panel_kwargs)
+
+    def _render_header(self, table: Table) -> None:
+        """Render header line if applicable. Can be overridden by subclasses."""
+        pass
+
+    def _render_footer(
+        self, table: Table, display_choices: list[Chooser.Choice]
+    ) -> None:
+        """Render footer text from footer_parts. Can be overridden by subclasses."""
+        if self.footer_parts:
+            footer_text = Text(self.messages.footer_separator.join(self.footer_parts))
+            footer_text.justify = "center"
+            table.add_row(footer_text, style=self.styles.footer_style)
+
+    def _set_selected(self) -> None:
+        display_choices = self._get_display_choices()
+        if display_choices:
+            self.highlighted_choice = display_choices[self.selected_filtered_index]
+
+            # TODO: remove selected_index and selected_value in favor of much
+            #       simpler Choice tracking
+            self.selected_index = self.highlighted_choice.index
+            self.selected_value = self.highlighted_choice.value
+        else:
+            self.highlighted_choice = None
+            
+            self.selected_index = 0
+            self.selected_value = None
+        for choice in self.all_choices:
+            choice.is_highlighted = choice == self.highlighted_choice
+        if self.on_change:
+            self.on_change()
+
+    def _adjust_to_selection(self) -> None:
+        """Adjust filtered index to match selected index. Can be overridden by subclasses."""
+        display_choices = self._get_display_choices()
+        filtered_indices = [choice.index for choice in display_choices]
+        if self.selected_index in filtered_indices:
+            self.selected_filtered_index = filtered_indices.index(self.selected_index)
+        else:
+            self.selected_filtered_index = 0
+        self._set_selected()
+
+    def _visible_count(
+        self, display_choices: list[Chooser.Choice] | None = None
+    ) -> int:
+        if display_choices is None:
+            display_choices = self._get_display_choices()
+        base_visible = min(len(display_choices), self.height)
+
+        if len(display_choices) > self.height:
+            # Keep enough rows to honor the scroll anchor and ensure a usable window
+            required_visible = self.MIN_VISIBLE_WHEN_SCROLLING
+            base_visible = min(
+                len(display_choices),
+                max(base_visible, required_visible),
+            )
+
+        return max(1, base_visible)
+
+    # ------------------------------------------------------------------
+    # Protected API - shared run loop for subclasses
+    # ------------------------------------------------------------------
+    def _run_main_loop(self, reader: KeyReader) -> bool:
+        """Run the main event loop until user confirms or cancels.
+        
+        Returns:
+            True if user confirmed selection, False if cancelled.
+        """
+        with Live(
+            self._render(), console=self.console, transient=self.transient, auto_refresh=False
+        ) as live:
+            while True:
+                # Check if we should exit early via custom logic
+                if self.should_exit and self.should_exit():
+                    return False
+
+                key = reader.read_key()
+
+                # If an error overlay is active, clear it on any key press and re-render
+                if getattr(self, "_error_message", None):
+                    self._error_message = None
+                    live.update(self._render())
+                    live.refresh()
+                    continue
+
+                # Allow custom on_key handler to intercept or modify the key
+                if self.on_key:
+                    intercepted = self.on_key(key)
+                    if intercepted is None:
+                        # Handler requested to skip default processing
+                        live.update(self._render())
+                        live.refresh()
+                        continue
+                    key = intercepted
+
+                display_choices = self._get_display_choices()
+
+                if key in self.keybindings.get("up", []):
+                    if self.selected_filtered_index > 0:
+                        self.selected_filtered_index -= 1
+                    elif self.wrap_navigation and display_choices:
+                        self.selected_filtered_index = len(display_choices) - 1
+                    self._set_selected()
+
+                elif key in self.keybindings.get("down", []):
+                    if self.selected_filtered_index < len(display_choices) - 1:
+                        self.selected_filtered_index += 1
+                    elif self.wrap_navigation and display_choices:
+                        self.selected_filtered_index = 0
+                    self._set_selected()
+
+                elif key in self.keybindings.get("home", []):
+                    self.selected_filtered_index = 0
+                    self._set_selected()
+
+                elif key in self.keybindings.get("end", []):
+                    if display_choices:
+                        self.selected_filtered_index = len(display_choices) - 1
+                        self._set_selected()
+
+                elif key in self.keybindings.get("page_up", []):
+                    step = max(1, self._visible_count(display_choices) - 1)
+                    self.selected_filtered_index = max(
+                        0, self.selected_filtered_index - step
+                    )
+                    self._set_selected()
+
+                elif key in self.keybindings.get("page_down", []):
+                    if display_choices:
+                        step = max(1, self._visible_count(display_choices) - 1)
+                        self.selected_filtered_index = min(
+                            len(display_choices) - 1,
+                            self.selected_filtered_index + step,
+                        )
+                    self._set_selected()
+
+                elif key in self.keybindings.get("confirm", []):
+                    return True
+
+                elif key in self.keybindings.get("cancel", []):
+                    return False
+
+                else:
+                    if self._handle_other_key(key):
+                        return True
+
+                live.update(self._render())
+                live.refresh()
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+    def run(
+        self, *, reader: KeyReader | None = None
+    ) -> tuple[str, int] | tuple[None, None]:
+        """Run the chooser and return the selected value and index."""
+        if self.before_run:
+            self.before_run()
+
+        self._prepare_choices()
+        with reader or self._get_reader() as key_reader:
+            while True:
+                confirmed = self._run_main_loop(key_reader)
+                
+                if not confirmed:
+                    self.result = (None, None)
+                    break
+                
+                # Validate selection
+                error = self._validate_selection()
+                if error:
+                    self._error_message = error
+                    continue
+                
+                # Call confirmation hook if present
+                if self.on_confirm:
+                    if not self.on_confirm(*self._get_hook_args()):
+                        # Hook wants to continue
+                        self._prepare_choices()
+                        self._adjust_to_selection()
+                        continue
+                
+                # Build and return result
+                self.result = self._build_result()
+                break
+
+        if self.after_run:
+            self.after_run(self.result)
+
+        return self.result
+    
+    def _validate_selection(self) -> str | None:
+        """Validate the current selection. Return error message or None.
+        
+        Override in subclasses to add validation logic.
+        """
+        return None
+    
+    def _get_hook_args(self) -> tuple[Any, ...]:
+        """Get the arguments to pass to on_confirm hook.
+        
+        Override in subclasses to customize what gets passed to the hook.
+        """
+        return (str(self.selected_value), self.selected_index)
+    
+    def _build_result(self) -> tuple[str, int] | tuple[None, None]:
+        """Build the result to return from run().
+        
+        Override in subclasses to customize the return value.
+        """
+        self._set_selected()
+        if self.selected_value is None:
+            return (None, None)
+        return (str(self.selected_value), self.selected_index)
+
+    def _handle_other_key(self, key: str) -> bool:
+        """Handle any remaining keys. Can be overridden by subclasses."""
+        return False

@@ -223,27 +223,28 @@ def test_chooser_uses_default_messages():
     chooser = Chooser(choices=["a", "b", "c"], console=fake_console())
     defaults = _merge_messages()
 
-    # Verify instructions message is present
-    assert chooser.messages.instructions == defaults.instructions
+    # Verify nav and confirm instructions are present
+    assert chooser.messages.nav_instructions == defaults.nav_instructions
+    assert chooser.messages.confirm_instructions == defaults.confirm_instructions
 
 
 def test_chooser_applies_custom_messages():
     """Test that Chooser applies custom message overrides."""
     custom_messages = {
-        "instructions": "Use arrow keys to navigate",
+        "nav_instructions": "Use arrow keys to navigate",
     }
 
     chooser = Chooser(
         choices=["a", "b"], messages=custom_messages, console=fake_console()
     )
 
-    assert chooser.messages.instructions == "Use arrow keys to navigate"
+    assert chooser.messages.nav_instructions == "Use arrow keys to navigate"
 
 
 def test_chooser_custom_instructions_used_in_footer():
     """Test that custom instructions are used in rendering."""
     custom_messages = {
-        "instructions": "Custom Navigation Text",
+        "nav_instructions": "Custom Navigation Text",
     }
 
     _reader = FakeReader(["ENTER"])
@@ -255,13 +256,13 @@ def test_chooser_custom_instructions_used_in_footer():
 
     # The footer should render with custom instructions
     # We verify this by checking the messages are stored correctly
-    assert "Custom Navigation Text" in chooser.messages.instructions
+    assert "Custom Navigation Text" in chooser.messages.nav_instructions
 
 
 def test_chooser_partial_message_override():
     """Test that partial message updates merge with defaults."""
     partial_messages = {
-        "instructions": "Press Enter to select",
+        "confirm_instructions": "Press Enter to select",
     }
 
     chooser = Chooser(
@@ -269,7 +270,7 @@ def test_chooser_partial_message_override():
     )
 
     # Custom message applied
-    assert chooser.messages.instructions == "Press Enter to select"
+    assert chooser.messages.confirm_instructions == "Press Enter to select"
 
     # All other messages still have defaults
     from get_rich.messages import _merge_messages
@@ -308,31 +309,31 @@ def test_chooser_single_choice_select():
     result = chooser.run(reader=reader)
     # Instead of output, check config
     assert result == ("only", 0)
-    assert "Navigate" in chooser.messages.instructions
+    assert "Navigate" in chooser.messages.nav_instructions
 
 
 def test_chooser_invalid_styles_and_messages():
     """Test that invalid style/message keys are used as-is (no type enforcement)."""
     bad_styles = {"not_a_style": 123, "selection_style": 42}
-    bad_messages = {"not_a_message": 123, "instructions": 42}
+    bad_messages = {"not_a_message": 123, "nav_instructions": 42}
     chooser = Chooser(
         choices=["a"], styles=bad_styles, messages=bad_messages, console=fake_console()
     )
     # Should use the value as-is
     assert chooser.styles.selection_style == 42
-    assert chooser.messages.instructions == 42
+    assert chooser.messages.nav_instructions == 42
 
 
 def test_chooser_unicode_choices_and_messages():
     """Test that unicode/emoji in choices and messages are accepted and present in config."""
-    custom_messages = {"instructions": "Sélectionnez 🚀"}
+    custom_messages = {"nav_instructions": "Sélectionnez 🚀"}
     chooser = Chooser(
         choices=["😀", "🍕", "你好"], messages=custom_messages, console=fake_console()
     )
     reader = FakeReader(["DOWN_ARROW", "ENTER"])
     _ = chooser.run(reader=reader)
     # Check that the unicode is present in the config
-    assert "🚀" in chooser.messages.instructions
+    assert "🚀" in chooser.messages.nav_instructions
     assert "🍕" in [str(c) for c in chooser.choices]
 
 

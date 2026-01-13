@@ -221,7 +221,7 @@ def test_shortcut_chooser_uses_default_messages():
     # Verify shortcut-specific messages are present
     assert chooser.messages.shortcut_select_range == defaults.shortcut_select_range
     assert chooser.messages.shortcut_select_key == defaults.shortcut_select_key
-    assert chooser.messages.instructions == defaults.instructions
+    assert chooser.messages.nav_instructions == defaults.nav_instructions
 
 
 def test_shortcut_chooser_applies_custom_messages():
@@ -229,7 +229,7 @@ def test_shortcut_chooser_applies_custom_messages():
     custom_messages = {
         "shortcut_select_range": "{start} to {end} to pick",
         "shortcut_select_key": "Press a key",
-        "instructions": "Navigate and select",
+        "nav_instructions": "Navigate and select",
     }
 
     chooser = ShortcutChooser(
@@ -238,7 +238,7 @@ def test_shortcut_chooser_applies_custom_messages():
 
     assert chooser.messages.shortcut_select_range == "{start} to {end} to pick"
     assert chooser.messages.shortcut_select_key == "Press a key"
-    assert chooser.messages.instructions == "Navigate and select"
+    assert chooser.messages.nav_instructions == "Navigate and select"
 
 
 def test_shortcut_select_range_formatting():
@@ -287,7 +287,7 @@ def test_shortcut_chooser_partial_message_override():
 
     defaults = _merge_messages()
     assert chooser.messages.shortcut_select_key == defaults.shortcut_select_key
-    assert chooser.messages.instructions == defaults.instructions
+    assert chooser.messages.nav_instructions == defaults.nav_instructions
 
 
 def test_shortcut_chooser_style_and_message_together():
@@ -297,7 +297,7 @@ def test_shortcut_chooser_style_and_message_together():
     }
     custom_messages = {
         "shortcut_select_range": "Pick {start} to {end}",
-        "instructions": "Use keyboard to select",
+        "nav_instructions": "Use keyboard to select",
     }
 
     chooser = ShortcutChooser(
@@ -310,7 +310,7 @@ def test_shortcut_chooser_style_and_message_together():
     # Both custom styles and messages are applied
     assert chooser.styles.shortcut_prefix_style == "bold yellow"
     assert chooser.messages.shortcut_select_range == "Pick {start} to {end}"
-    assert chooser.messages.instructions == "Use keyboard to select"
+    assert chooser.messages.nav_instructions == "Use keyboard to select"
 
     # Verify formatting works
     formatted = chooser.messages.shortcut_select_range.format(start=1, end=3)
@@ -333,18 +333,18 @@ def test_shortcut_chooser_empty_choices_renders_gracefully():
     result = chooser.run(reader=reader)
     output = sio.getvalue()
     assert result == (None, None)
-    assert "Navigate" in chooser.messages.instructions
+    assert "Navigate" in chooser.messages.nav_instructions
     assert re.search(r"\bKey\b|\bSelect\b|\bEnter\b", output)
 
 
 def test_shortcut_chooser_single_choice_select():
-    """Test that ShortcutChooser with one choice can be selected and instructions are present in config."""
+    """Test that ShortcutChooser with one choice can be selected and nav instructions are present in config."""
     console = Console(file=StringIO(), force_terminal=True, color_system=None, width=80)
     chooser = ShortcutChooser(choices=["one"], console=console)
     reader = FakeReader(["ENTER"])
     result = chooser.run(reader=reader)
     assert result == ("one", 0)
-    assert "Navigate" in chooser.messages.instructions
+    assert "Navigate" in chooser.messages.nav_instructions
 
 
 def test_shortcut_chooser_invalid_styles_and_messages():
