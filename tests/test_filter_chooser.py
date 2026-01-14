@@ -65,9 +65,9 @@ def test_filter_chooser_uses_default_styles():
     from get_rich.styles import _merge_styles
 
     chooser = Chooser(
-        choices=["apple", "banana", "cherry"], 
+        choices=["apple", "banana", "cherry"],
         enable_filtering=True,
-        console=fake_console()
+        console=fake_console(),
     )
     defaults = _merge_styles()
 
@@ -86,10 +86,10 @@ def test_filter_chooser_applies_custom_styles():
     }
 
     chooser = Chooser(
-        choices=["apple", "banana"], 
+        choices=["apple", "banana"],
         enable_filtering=True,
-        styles=custom_styles, 
-        console=fake_console()
+        styles=custom_styles,
+        console=fake_console(),
     )
 
     # Custom styles are applied
@@ -127,7 +127,9 @@ def test_filter_chooser_uses_default_messages():
     """Test that FilterChooser applies default messages."""
     from get_rich.messages import _merge_messages
 
-    chooser = Chooser(choices=["apple", "banana"], enable_filtering=True, console=fake_console())
+    chooser = Chooser(
+        choices=["apple", "banana"], enable_filtering=True, console=fake_console()
+    )
     defaults = _merge_messages()
 
     # Verify filter-specific messages are present
@@ -145,10 +147,10 @@ def test_filter_chooser_applies_custom_messages():
     }
 
     chooser = Chooser(
-        choices=["apple", "banana"], 
+        choices=["apple", "banana"],
         enable_filtering=True,
-        messages=custom_messages, 
-        console=fake_console()
+        messages=custom_messages,
+        console=fake_console(),
     )
 
     assert chooser.messages.filter_label == "Search: "
@@ -215,10 +217,10 @@ def test_filter_chooser_partial_message_override():
     }
 
     chooser = Chooser(
-        choices=["a"], 
+        choices=["a"],
         enable_filtering=True,
-        messages=partial_messages, 
-        console=fake_console()
+        messages=partial_messages,
+        console=fake_console(),
     )
 
     # Custom message applied

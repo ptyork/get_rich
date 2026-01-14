@@ -45,7 +45,9 @@ def test_multi_chooser_select_single_with_space():
 
 def test_multi_chooser_select_multiple_with_space():
     """Test selecting multiple items with space bar."""
-    reader = FakeReader(["SPACE", "DOWN_ARROW", "SPACE", "DOWN_ARROW", "SPACE", "ENTER"])
+    reader = FakeReader(
+        ["SPACE", "DOWN_ARROW", "SPACE", "DOWN_ARROW", "SPACE", "ENTER"]
+    )
     chooser = MultiChooser(choices=["a", "b", "c"], console=fake_console())
 
     values, indices = chooser.run(reader=reader)
@@ -69,7 +71,9 @@ def test_multi_chooser_toggle_selection():
 
 def test_multi_chooser_select_with_navigation():
     """Test selecting items while navigating."""
-    reader = FakeReader(["SPACE", "DOWN_ARROW", "DOWN_ARROW", "SPACE", "UP_ARROW", "SPACE", "ENTER"])
+    reader = FakeReader(
+        ["SPACE", "DOWN_ARROW", "DOWN_ARROW", "SPACE", "UP_ARROW", "SPACE", "ENTER"]
+    )
     chooser = MultiChooser(choices=["x", "y", "z"], console=fake_console())
 
     values, indices = chooser.run(reader=reader)
@@ -109,7 +113,7 @@ def test_multi_chooser_pre_selected_by_index():
     """Test initializing with pre-selected items by index."""
     chooser = MultiChooser(
         choices=["a", "b", "c"],
-        selected_indexes=[0, 2],
+        selected_indices=[0, 2],
         console=fake_console(),
     )
     reader = FakeReader(["ENTER"])
@@ -139,7 +143,7 @@ def test_multi_chooser_deselect_pre_selected():
     """Test deselecting items that were pre-selected."""
     chooser = MultiChooser(
         choices=["a", "b", "c"],
-        selected_indexes=[0, 1, 2],
+        selected_indices=[0, 1, 2],
         console=fake_console(),
     )
     reader = FakeReader(["SPACE", "DOWN_ARROW", "SPACE", "ENTER"])
@@ -201,7 +205,18 @@ def test_multi_chooser_max_selected_constraint():
         console=fake_console(),
     )
     # Try to select all 3, dismiss error, then ESC to exit
-    reader = FakeReader(["SPACE", "DOWN_ARROW", "SPACE", "DOWN_ARROW", "SPACE", "ENTER", "UP_ARROW", "ESC"])
+    reader = FakeReader(
+        [
+            "SPACE",
+            "DOWN_ARROW",
+            "SPACE",
+            "DOWN_ARROW",
+            "SPACE",
+            "ENTER",
+            "UP_ARROW",
+            "ESC",
+        ]
+    )
 
     values, indices = chooser.run(reader=reader)
 
@@ -257,7 +272,18 @@ def test_multi_chooser_range_constraint_too_many():
     )
     # Try to select all 4, dismiss error, then ESC to exit
     reader = FakeReader(
-        ["SPACE", "DOWN_ARROW", "SPACE", "DOWN_ARROW", "SPACE", "DOWN_ARROW", "SPACE", "ENTER", "UP_ARROW", "ESC"]
+        [
+            "SPACE",
+            "DOWN_ARROW",
+            "SPACE",
+            "DOWN_ARROW",
+            "SPACE",
+            "DOWN_ARROW",
+            "SPACE",
+            "ENTER",
+            "UP_ARROW",
+            "ESC",
+        ]
     )
 
     values, indices = chooser.run(reader=reader)
@@ -335,9 +361,7 @@ def test_multi_chooser_before_after_run_hooks():
 
 def test_multi_chooser_on_confirm_hook():
     """Test on_confirm hook controls whether selection is accepted."""
-    # Track which indices are selected
-    selected_indices = set()
-    
+
     def on_confirm(control):
         # Check which items are currently selected
         current_selected = {c.index for c in control.all_choices if c.is_selected}
@@ -361,7 +385,7 @@ def test_multi_chooser_on_confirm_hook():
         console=fake_console(),
     )
 
-    values, indices = chooser.run(reader=reader)
+    _, indices = chooser.run(reader=reader)
 
     assert set(indices) == {0, 1}
 
@@ -452,9 +476,7 @@ def test_multi_chooser_many_choices():
     """Test MultiChooser with many choices."""
     many_choices = [f"item_{i}" for i in range(100)]
     # Space to select item 0, then down-arrow 5 times, then space to select item 5
-    reader = FakeReader(
-        ["SPACE"] + ["DOWN_ARROW"] * 5 + ["SPACE", "ENTER"]
-    )
+    reader = FakeReader(["SPACE"] + ["DOWN_ARROW"] * 5 + ["SPACE", "ENTER"])
     chooser = MultiChooser(choices=many_choices, console=fake_console())
 
     values, indices = chooser.run(reader=reader)

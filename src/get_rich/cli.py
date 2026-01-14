@@ -25,6 +25,7 @@ from get_rich import (
     CREAMSICLE,
 )
 
+
 def basic_chooser() -> None:
     choices = [
         "apple",
@@ -43,7 +44,7 @@ def basic_chooser() -> None:
     )
     value, index = chooser.run()
     if value is not None:
-            print(f"You selected #{index}: {value}")
+        print(f"You selected #{index}: {value}")
     else:
         print("Cancelled")
 
@@ -262,17 +263,19 @@ def borderless_chooser_expanded() -> None:
 def chooser_with_hooks() -> None:
     """Chooser with before_run, after_run, and on_change hooks."""
     counter = {"changes": 0}
-    
+
     def before(control):
         print("[dim]🔔 Chooser is starting...[/]")
-    
+
     def after(control):
         val, idx = control.result if control.result else (None, None)
-        print(f"[dim]🔔 Chooser finished. Changes: {counter['changes']}, Result: {val}[/]")
-    
+        print(
+            f"[dim]🔔 Chooser finished. Changes: {counter['changes']}, Result: {val}[/]"
+        )
+
     def on_change(control):
         counter["changes"] += 1
-    
+
     chooser = Chooser(
         choices=["Red", "Green", "Blue", "Yellow"],
         title_text="Chooser with Hooks",
@@ -311,7 +314,7 @@ def filter_chooser_with_large_dataset() -> None:
     """Filtered Chooser with many items demonstrating filtering performance."""
     # Generate a larger dataset
     choices = [
-        f"{category}-{i:03d}" 
+        f"{category}-{i:03d}"
         for category in ["alpha", "beta", "gamma", "delta", "epsilon"]
         for i in range(1, 21)
     ]
@@ -622,10 +625,7 @@ def confirm_cancel_with_border_not_transient() -> None:
         header_text="You are about to do something really dangerous. Like the world is going to end if yo umake a mistake. This action cannot be undone. Are you 100% sure?",
         header_location="outside_left",
         width=80,
-        styles={
-            "body_style": "bold white on red",
-            "border_style": "bold bright_white"
-        },
+        styles={"body_style": "bold white on red", "border_style": "bold bright_white"},
         messages={"instructions": None},
         transient=False,
     )
@@ -676,7 +676,7 @@ def multi_chooser_with_preselection() -> None:
     multi_chooser = MultiChooser(
         choices=choices,
         title_text="Colors (red, blue, and orange pre-selected):",
-        selected_indexes=[0, 2, 5],  # red, blue, orange
+        selected_indices=[0, 2, 5],  # red, blue, orange
         width=50,
     )
     values, indices = multi_chooser.run()
@@ -820,7 +820,6 @@ def multi_chooser_with_range() -> None:
         print("Cancelled")
 
 
-
 chooser_demos = {
     "Chooser": [
         basic_chooser,
@@ -891,13 +890,11 @@ def main() -> None:
         ).run()
         if val:
             demos = chooser_demos.get(val, [])
-            choices = [func.__name__.replace("_"," ").title() for func in demos]
+            choices = [func.__name__.replace("_", " ").title() for func in demos]
             _, index = Chooser(
                 choices=choices,
                 title_text=f"Select a demo for {val}:",
-                messages={
-
-                },
+                messages={},
             ).run()
             if index is not None:
                 demos[index]()
@@ -905,6 +902,7 @@ def main() -> None:
                 print(inspect.getsource(demos[index]))
         else:
             break
+
 
 if __name__ == "__main__":
     main()

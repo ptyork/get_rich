@@ -154,8 +154,8 @@ class Chooser(BaseControl):
         self.filter_text: str = ""
         self.filtered_choices: list[Chooser.Choice] = []
 
-        self.highlighted_index: int = 0
         self.highlighted_filtered_index: int = 0
+        self._highlighted_choice: Chooser.Choice | None = None
         self.on_confirm: Callable[[str, int], bool] | None = on_confirm
         self.result: tuple[str, int] | tuple[None, None] | None = None
 
@@ -169,15 +169,33 @@ class Chooser(BaseControl):
 
         # PRE-select choices if requested
         if selected_index is not None and 0 <= selected_index < len(self.all_choices):
-            self.highlighted_index = selected_index
             self.highlighted_choice = self.all_choices[selected_index]
+            self.highlighted_filtered_index = selected_index
         elif selected_value:
-            for choice in self.all_choices:
-                if choice.plain.lower() == selected_value.lower():
-                    self.highlighted_index = choice.index
+            for i, choice in enumerate(self.all_choices):
+                if choice.value.plain.lower() == selected_value.lower():
                     self.highlighted_choice = choice
+                    self.highlighted_filtered_index = i
                     break
-        self.highlighted_filtered_index = self.highlighted_index
+
+    ################################################################@##########
+    # PROPERTY: highlighted_choice
+    ################################################################@##########
+    @property
+    def highlighted_choice(self) -> Chooser.Choice | None:
+        """Get the currently highlighted choice."""
+        return self._highlighted_choice
+
+    @highlighted_choice.setter
+    def highlighted_choice(self, choice: Chooser.Choice | None) -> None:
+        """Set the highlighted choice and update is_highlighted flags."""
+        # Clear is_highlighted on old choice
+        if self._highlighted_choice is not None:
+            self._highlighted_choice.is_highlighted = False
+        # Set is_highlighted on new choice
+        if choice is not None:
+            choice.is_highlighted = True
+        self._highlighted_choice = choice
 
     ################################################################@##########
     # VIRTUAL: _get_display_choices
@@ -185,9 +203,6 @@ class Chooser(BaseControl):
     def _get_display_choices(self) -> list[Chooser.Choice]:
         """Get the list of choices to display. Can be overridden by subclasses."""
         if self.enable_filtering:
-            # Update is_highlighted for filtered choices
-            for choice in self.filtered_choices:
-                choice.is_highlighted = choice.index == self.highlighted_index
             return self.filtered_choices
         return self.all_choices
 
@@ -428,10 +443,7 @@ class Chooser(BaseControl):
                 inner.add_row(choices_table, self.header_text)
 
             outer.add_row(inner)
-            if self.messages.instructions:
-                outer.add_row(
-                    self.messages.instructions, style=self.styles.footer_style
-                )
+            self._render_footer(outer, display_choices)
             table = outer
         else:
             self._render_footer(choices_table, display_choices)
@@ -506,11 +518,12 @@ class Chooser(BaseControl):
                 if filter_lower in choice.value.plain.lower()
             ]
 
-        """Adjust filtered index to match selected index. Can be overridden by subclasses."""
+        # Adjust filtered index to match selected choice
         display_choices = self._get_display_choices()
-        filtered_indices = [choice.index for choice in display_choices]
-        if self.highlighted_index in filtered_indices:
-            self.highlighted_filtered_index = filtered_indices.index(self.highlighted_index)
+        if self.highlighted_choice and self.highlighted_choice in display_choices:
+            self.highlighted_filtered_index = display_choices.index(
+                self.highlighted_choice
+            )
         else:
             self.highlighted_filtered_index = 0
         self._set_highlighted()
@@ -604,18 +617,13 @@ class Chooser(BaseControl):
     # UTILITY: _set_highlighted
     ################################################################@##########
     def _set_highlighted(self) -> None:
-        for choice in self.all_choices:
-            choice.is_highlighted = False
         display_choices = self._get_display_choices()
         if display_choices:
             choice = display_choices[self.highlighted_filtered_index]
             self.highlighted_choice = choice
-            self.highlighted_index = choice.index
-            choice.is_highlighted = True
         else:
             self.highlighted_choice = None
-            self.highlighted_index = 0
-            
+
         if self.on_change:
             self.on_change(self)
 
@@ -658,9 +666,11 @@ class Chooser(BaseControl):
         if self.footer_parts and any(self.footer_parts):
             available_rows -= 1
 
-        # Ensure at least MIN_VISIBLE_WHEN_SCROLLING rows when scrolling is needed
+        # Add a safety-net size to ensure there's enough room for the items
+        # and scrolling if needed.
         if len(display_choices) > available_rows:
             available_rows = max(available_rows, self.MIN_VISIBLE_WHEN_SCROLLING)
+            available_rows = min(len(display_choices), available_rows)
 
         return max(1, available_rows)
 

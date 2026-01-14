@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Callable, Sequence
+from typing import Callable, Sequence
 
 from docstring_inheritance import GoogleDocstringInheritanceInitMeta
 from rich.console import Console

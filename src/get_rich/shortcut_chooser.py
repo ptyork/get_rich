@@ -4,6 +4,7 @@ from typing import Any, Callable, Iterable, Sequence
 
 from rich.console import Console
 from rich.table import Table
+from rich.text import Text
 
 from . import Chooser
 from .key_reader import KeyReader
@@ -67,9 +68,6 @@ class ShortcutChooser(Chooser):
         self.strict_mode: bool = strict_mode
         self.auto_mode: bool = shortcut_keys is None
 
-        # Initialize the shortcuts before calling super().__init__
-        self._init_shortcuts(choices, shortcut_keys)
-
         super().__init__(
             choices=choices,
             title_text=title_text,
@@ -94,44 +92,31 @@ class ShortcutChooser(Chooser):
             should_exit=should_exit,
         )
 
-    def _init_shortcuts(
-        self, choices: Iterable[str], shortcut_keys: Sequence[str] | None
-    ) -> None:
         """Initialize shortcut key mappings."""
-        choices_list = list(choices)
-        num_choices = len(choices_list)
+        num_choices = len(self.all_choices)
 
         if shortcut_keys is None:
             # Auto mode: use 1-9, 0 for choices
             self.shortcut_keys = [str((i + 1) % 10) for i in range(num_choices)]
         else:
-            shortcut_keys_list = list(shortcut_keys)
-
             # Check for issues
             if self.strict_mode:
-                if len(shortcut_keys_list) < num_choices:
+                test_set = set(shortcut_keys)
+                if len(test_set) != num_choices:
                     raise ValueError(
-                        f"Too few shortcut keys: {len(shortcut_keys_list)} keys "
-                        f"for {num_choices} choices"
+                        f"Must have exactly {num_choices} unique shortcut keys"
                     )
-                if len(shortcut_keys_list) > num_choices:
-                    raise ValueError(
-                        f"Too many shortcut keys: {len(shortcut_keys_list)} keys "
-                        f"for {num_choices} choices"
-                    )
-                # Check for duplicates in the valid range
-                valid_keys = shortcut_keys_list[:num_choices]
-                if len(valid_keys) != len(set(valid_keys)):
-                    raise ValueError("Duplicate shortcut keys found")
 
             # Use only the keys we need
-            self.shortcut_keys = shortcut_keys_list[:num_choices]
+            self.shortcut_keys = list(shortcut_keys)[:num_choices]
 
-        # Build the mapping from key to index
+        # Build the mapping from key to index and update the choices
         self.shortcut_key_to_index = {}
         for i, key in enumerate(self.shortcut_keys):
             # In non-strict mode, later duplicates overwrite earlier ones
             self.shortcut_key_to_index[key] = i
+            if self.show_shortcuts:
+                self.all_choices[i].shortcut_key = key
 
     def _render_footer(
         self, table: Table, display_choices: list[Chooser.Choice]
@@ -144,49 +129,29 @@ class ShortcutChooser(Chooser):
             )
             sel_text += self.messages.footer_separator
         elif self.show_shortcuts:
-            sel_text = self.messages.shortcut_select_key + self.messages.footer_separator
+            sel_text = (
+                self.messages.shortcut_select_key + self.messages.footer_separator
+            )
         footer = f"{sel_text}{self.messages.nav_instructions}"
         table.add_row(footer, style="dim")
 
-    def _get_display_choices(self) -> list[Chooser.Choice]:
-        """Get the list of choices with shortcut_key populated for rendering."""
-        display_choices = []
-        for i in range(len(self.all_choices)):
-            display_choices.append(
-                Chooser.Choice(
-                    index=i,
-                    value=self.all_choices[i].value,
-                    is_highlighted=(i == self.highlighted_index),
-                    shortcut_key=self.shortcut_keys[i] if (self.show_shortcuts and i < len(self.shortcut_keys)) else None
-                )
-            )
-        return display_choices
-
     def _render_choice_row(self, choice: Chooser.Choice) -> tuple[Text, str]:
         """Render choice with shortcut prefix if present."""
-        from rich.text import Text
-        
         if choice.shortcut_key:
             # Render shortcut prefix
-            prefix = f"{choice.shortcut_key}) "
-            choice_text = Text.assemble(
-                Text(prefix, style=self.styles.shortcut_prefix_style),
-                choice.value,
-            )
+            prefix = Text(choice.shortcut_key, style=self.styles.shortcut_prefix_style)
+            choice_text = Text.assemble(prefix, " ", choice.value)
         else:
             choice_text = choice.value
-        
+
         # Add caret and apply selection style if highlighted
         if choice.is_highlighted:
             caret = self.styles.selection_caret
-            final_text = Text.from_markup(f"{caret} ")
-            final_text.append(choice_text)
+            final_text = Text.from_markup(f"{caret} {choice_text}")
             final_text.stylize(self.styles.selection_style)
             return final_text, self.styles.body_style
         else:
-            final_text = Text.from_markup("  ")
-            final_text.append(choice_text)
-            return final_text, self.styles.body_style
+            return Text(f"  {choice_text}"), self.styles.body_style
 
     def _handle_other_key(self, key: str) -> bool:
         """Handle shortcut keys for direct selection."""

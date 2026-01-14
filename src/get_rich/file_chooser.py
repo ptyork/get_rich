@@ -230,7 +230,9 @@ class FileChooser(Chooser):
         self.all_choices = [
             Chooser.Choice(i, text) for i, text in enumerate(text_choices)
         ]
-        self.highlighted_index = self.highlighted_filtered_index = selected_index
+        self.highlighted_filtered_index = selected_index
+        if selected_index < len(self.all_choices):
+            self.highlighted_choice = self.all_choices[selected_index]
 
         # Dynamically enable/disable filtering based on list size
         # Calculate visible count to determine if filtering is needed
@@ -250,9 +252,11 @@ class FileChooser(Chooser):
         super()._prepare_choices()
 
     def _on_confirm(self, chooser: "FileChooser") -> bool:
-        selected_value = str(chooser.selected_value)
-        selected_index = chooser.highlighted_index
-        
+        selected_value = str(chooser.highlighted_choice)
+        selected_index = (
+            chooser.highlighted_choice.index if chooser.highlighted_choice else 0
+        )
+
         if self.choose_dirs:
             if selected_index != 0:
                 selected_name = selected_value.split()[0]

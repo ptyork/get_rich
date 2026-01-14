@@ -136,7 +136,7 @@ def test_shortcut_chooser_duplicate_keys_non_strict():
 
 def test_shortcut_chooser_too_few_keys_strict():
     """Test that too few keys raise in strict mode."""
-    with pytest.raises(ValueError, match="Too few shortcut keys"):
+    with pytest.raises(ValueError, match="Must have exactly .* unique shortcut keys"):
         ShortcutChooser(
             choices=["a", "b", "c"],
             shortcut_keys=["x", "y"],
@@ -147,7 +147,7 @@ def test_shortcut_chooser_too_few_keys_strict():
 
 def test_shortcut_chooser_too_many_keys_strict():
     """Test that too many keys raise in strict mode."""
-    with pytest.raises(ValueError, match="Too many shortcut keys"):
+    with pytest.raises(ValueError, match="Must have exactly .* unique shortcut keys"):
         ShortcutChooser(
             choices=["a", "b"],
             shortcut_keys=["a", "b", "c", "d"],
@@ -158,7 +158,7 @@ def test_shortcut_chooser_too_many_keys_strict():
 
 def test_shortcut_chooser_duplicate_keys_strict():
     """Test that duplicate keys raise in strict mode."""
-    with pytest.raises(ValueError, match="Duplicate shortcut keys"):
+    with pytest.raises(ValueError, match="Must have exactly .* unique shortcut keys"):
         ShortcutChooser(
             choices=["a", "b", "c"],
             shortcut_keys=["x", "x", "y"],

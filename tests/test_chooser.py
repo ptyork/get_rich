@@ -376,3 +376,230 @@ def test_chooser_on_key_and_hooks():
     )
     chooser.run(reader=reader)
     assert all(called.values())
+
+
+def test_selected_value_parameter():
+    """Test pre-selecting by value instead of index."""
+    reader = FakeReader(["ENTER"])
+    chooser = Chooser(
+        choices=["apple", "banana", "cherry"],
+        selected_value="banana",
+        console=fake_console(),
+    )
+
+    result = chooser.run(reader=reader)
+
+    assert result == ("banana", 1)
+
+
+def test_selected_value_case_insensitive():
+    """Test that selected_value matching is case-insensitive."""
+    reader = FakeReader(["ENTER"])
+    chooser = Chooser(
+        choices=["Apple", "Banana", "Cherry"],
+        selected_value="BANANA",
+        console=fake_console(),
+    )
+
+    result = chooser.run(reader=reader)
+
+    assert result == ("Banana", 1)
+
+
+def test_page_down_navigation():
+    """Test PAGE_DOWN key for fast navigation."""
+    reader = FakeReader(["PAGE_DOWN", "ENTER"])
+    choices = [f"Item {i}" for i in range(20)]
+    chooser = Chooser(
+        choices=choices,
+        height=10,
+        console=fake_console(),
+    )
+
+    result = chooser.run(reader=reader)
+
+    # Should jump down by visible count - 1
+    assert result[0] is not None
+    assert result[1] > 0  # Moved down from position 0
+
+
+def test_page_up_navigation():
+    """Test PAGE_UP key for fast navigation."""
+    reader = FakeReader(["END", "PAGE_UP", "ENTER"])
+    choices = [f"Item {i}" for i in range(20)]
+    chooser = Chooser(
+        choices=choices,
+        height=10,
+        console=fake_console(),
+    )
+
+    result = chooser.run(reader=reader)
+
+    # Should jump up by visible count - 1 from end
+    assert result[0] is not None
+    assert result[1] < len(choices) - 1  # Moved up from end
+
+
+def test_filtering_with_text_input():
+    """Test text filtering by typing characters."""
+    reader = FakeReader(["b", "a", "ENTER"])
+    chooser = Chooser(
+        choices=["apple", "banana", "cherry", "blueberry"],
+        enable_filtering=True,
+        console=fake_console(),
+    )
+
+    result = chooser.run(reader=reader)
+
+    # Should filter to items containing "ba" and select first match
+    assert result[0] in ["banana"]
+
+
+def test_filtering_with_space():
+    """Test that space key works in filtering."""
+    reader = FakeReader(["f", "i", "l", "e", " ", "o", "ENTER"])
+    chooser = Chooser(
+        choices=["file one", "file two", "document"],
+        enable_filtering=True,
+        console=fake_console(),
+    )
+
+    result = chooser.run(reader=reader)
+
+    # Should filter to "file o" and match "file one"
+    assert result[0] == "file one"
+
+
+def test_filtering_backspace():
+    """Test backspace in filtering."""
+    reader = FakeReader(["x", "BACKSPACE", "a", "ENTER"])
+    chooser = Chooser(
+        choices=["apple", "banana", "cherry"],
+        enable_filtering=True,
+        console=fake_console(),
+    )
+
+    result = chooser.run(reader=reader)
+
+    # Should type "x", delete it, then type "a" - matches apple
+    assert result[0] == "apple"
+
+
+def test_choice_equality_with_string():
+    """Test Choice.__eq__ with string comparison."""
+    choice = Chooser.Choice(0, "test")
+    assert choice == "test"
+    assert not (choice == "other")
+
+
+def test_choice_equality_with_choice():
+    """Test Choice.__eq__ with another Choice object."""
+    from rich.text import Text
+
+    choice1 = Chooser.Choice(0, Text("test"))
+    choice2 = Chooser.Choice(1, Text("test"))
+    choice3 = Chooser.Choice(0, Text("other"))
+
+    assert choice1 == choice2  # Same value
+    assert not (choice1 == choice3)  # Different value
+
+
+def test_choice_equality_with_other_types():
+    """Test Choice.__eq__ returns False for non-string/non-Choice types."""
+    from rich.text import Text
+
+    choice = Chooser.Choice(0, Text("test"))
+
+    assert choice != 123
+    assert choice is not None
+    assert choice != ["test"]
+
+
+def test_borderless_with_title():
+    """Test borderless chooser with title."""
+    reader = FakeReader(["ENTER"])
+    chooser = Chooser(
+        choices=["a", "b", "c"],
+        title_text="My Title",
+        styles={"show_border": False},
+        console=fake_console(),
+    )
+
+    result = chooser.run(reader=reader)
+
+    assert result == ("a", 0)
+
+
+def test_outside_top_header():
+    """Test outside top header placement."""
+    reader = FakeReader(["ENTER"])
+    chooser = Chooser(
+        choices=["a", "b", "c"],
+        header_text="Header Text",
+        header_location="outside_top",
+        console=fake_console(),
+    )
+
+    result = chooser.run(reader=reader)
+
+    assert result == ("a", 0)
+
+
+def test_outside_left_header():
+    """Test outside left header placement."""
+    reader = FakeReader(["ENTER"])
+    chooser = Chooser(
+        choices=["a", "b", "c"],
+        header_text="Left",
+        header_location="outside_left",
+        console=fake_console(),
+    )
+
+    result = chooser.run(reader=reader)
+
+    assert result == ("a", 0)
+
+
+def test_outside_right_header():
+    """Test outside right header placement."""
+    reader = FakeReader(["ENTER"])
+    chooser = Chooser(
+        choices=["a", "b", "c"],
+        header_text="Right",
+        header_location="outside_right",
+        console=fake_console(),
+    )
+
+    result = chooser.run(reader=reader)
+
+    assert result == ("a", 0)
+
+
+def test_inside_left_header():
+    """Test inside left header placement."""
+    reader = FakeReader(["ENTER"])
+    chooser = Chooser(
+        choices=["a", "b", "c"],
+        header_text="Inside Left",
+        header_location="inside_left",
+        console=fake_console(),
+    )
+
+    result = chooser.run(reader=reader)
+
+    assert result == ("a", 0)
+
+
+def test_inside_right_header():
+    """Test inside right header placement."""
+    reader = FakeReader(["ENTER"])
+    chooser = Chooser(
+        choices=["a", "b", "c"],
+        header_text="Inside Right",
+        header_location="inside_right",
+        console=fake_console(),
+    )
+
+    result = chooser.run(reader=reader)
+
+    assert result == ("a", 0)
