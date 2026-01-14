@@ -8,7 +8,6 @@ from rich.align import Align
 
 from get_rich import (
     Chooser,
-    FilterChooser,
     FileChooser,
     MultiChooser,
     ShortcutChooser,
@@ -40,7 +39,6 @@ def basic_chooser() -> None:
     chooser = Chooser(
         choices=choices,
         title_text="Select a fruit:",
-        height=8,
         width=50,
     )
     value, index = chooser.run()
@@ -83,10 +81,10 @@ def basic_filter_chooser() -> None:
         "iota",
         "kappa",
     ]
-    filter_chooser = FilterChooser(
+    filter_chooser = Chooser(
         choices=choices,
         title_text="Filter and select an option:",
-        height=6,
+        enable_filtering=True,
     )
     value, index = filter_chooser.run()
     if value is not None:
@@ -112,9 +110,10 @@ def filter_chooser_with_custom_messages() -> None:
         "filter_label": "Type to filter options: ",
         "items_count": "{count} fruits",
     }
-    filter_chooser = FilterChooser(
+    filter_chooser = Chooser(
         choices=colors,
-        title_text="Custom Messages FilterChooser:",
+        title_text="Custom Messages Filtered Chooser:",
+        enable_filtering=True,
         messages=custom_messages,
     )
     value, index = filter_chooser.run()
@@ -138,13 +137,13 @@ def basic_file_chooser() -> None:
         print("Cancelled")
 
 
-def min_height_file_chooser() -> None:
+def fixed_height_file_chooser() -> None:
     file_chooser = FileChooser(
         initial_path=".",
         choose_dirs=False,
         title_text="Select a file:",
-        header_text="There's a minimum height for scrollable content",
-        height=10,
+        header_text="There's a fixed height of 12 lines",
+        height=12,
         width=60,
     )
     path = file_chooser.run()  # returns a Path object
@@ -160,7 +159,6 @@ def no_width_file_chooser() -> None:
         choose_dirs=False,
         title_text="Select a file:",
         header_text="Can grow and shrink = bad for usability",
-        height=10,
     )
     path = file_chooser.run()  # returns a Path object
     if path:
@@ -192,7 +190,6 @@ def file_chooser_for_directories() -> None:
         choose_dirs=True,
         exclude_hidden=True,
         title_text="Select a directory:",
-        height=10,
     )
     path = file_chooser.run()
     if path:
@@ -212,7 +209,6 @@ def basic_shortcut_chooser() -> None:
     shortcut_chooser = ShortcutChooser(
         choices=choices,
         title_text="Select an action (use shortcuts 1-5):",
-        height=7,
         show_shortcuts=True,
     )
     value, index = shortcut_chooser.run()
@@ -303,7 +299,6 @@ def chooser_with_custom_keybindings() -> None:
         title_text="WASD Navigation",
         header_text="Use W/S to navigate, Space/Enter to confirm, Q to cancel",
         keybindings=custom_keys,
-        height=5,
     )
     value, index = chooser.run()
     if value is not None:
@@ -313,18 +308,18 @@ def chooser_with_custom_keybindings() -> None:
 
 
 def filter_chooser_with_large_dataset() -> None:
-    """FilterChooser with many items demonstrating filtering performance."""
+    """Filtered Chooser with many items demonstrating filtering performance."""
     # Generate a larger dataset
     choices = [
         f"{category}-{i:03d}" 
         for category in ["alpha", "beta", "gamma", "delta", "epsilon"]
         for i in range(1, 21)
     ]
-    filter_chooser = FilterChooser(
+    filter_chooser = Chooser(
         choices=choices,
         title_text="🔍 Large Dataset Filter Demo",
         header_text="Type to filter 100 items",
-        height=12,
+        enable_filtering=True,
         width=0,
     )
     value, index = filter_chooser.run()
@@ -341,7 +336,6 @@ def chooser_no_wrap_navigation() -> None:
         title_text="No Wrap Navigation",
         header_text="Navigation stops at top/bottom (no wrapping)",
         wrap_navigation=False,
-        height=5,
     )
     value, index = chooser.run()
     if value is not None:
@@ -357,7 +351,6 @@ def style_ocean_blue() -> None:
         title_text="🌊 Ocean Blue Style",
         header_text="Cool blue tones with bright white text",
         styles=OCEAN_BLUE,
-        height=7,
     )
     value, index = chooser.run()
     if value is not None:
@@ -367,13 +360,13 @@ def style_ocean_blue() -> None:
 
 
 def style_forest_green() -> None:
-    """Chooser with FOREST_GREEN preset style."""
-    chooser = FilterChooser(
+    """Filtered Chooser with FOREST_GREEN preset style."""
+    chooser = Chooser(
         choices=["Oak", "Pine", "Maple", "Birch", "Cedar"],
         title_text="🌲 Forest Green Style",
         header_text="Natural green theme with high contrast",
         styles=FOREST_GREEN,
-        height=7,
+        enable_filtering=True,
     )
     value, index = chooser.run()
     if value is not None:
@@ -383,13 +376,13 @@ def style_forest_green() -> None:
 
 
 def style_sunset_orange() -> None:
-    """Chooser with SUNSET_ORANGE preset style."""
-    chooser = FilterChooser(
+    """Filtered Chooser with SUNSET_ORANGE preset style."""
+    chooser = Chooser(
         choices=["Dawn", "Morning", "Noon", "Dusk", "Twilight"],
         title_text="🌅 Sunset Orange Style",
         header_text="Warm yellow/orange palette",
         styles=SUNSET_ORANGE,
-        height=7,
+        enable_filtering=True,
     )
     value, index = chooser.run()
     if value is not None:
@@ -399,13 +392,13 @@ def style_sunset_orange() -> None:
 
 
 def style_purple_haze() -> None:
-    """Chooser with PURPLE_HAZE preset style."""
-    chooser = FilterChooser(
+    """Filtered Chooser with PURPLE_HAZE preset style."""
+    chooser = Chooser(
         choices=["Lavender", "Violet", "Plum", "Amethyst", "Orchid"],
         title_text="💜 Purple Haze Style",
         header_text="Vibrant magenta/purple theme",
         styles=PURPLE_HAZE,
-        height=7,
+        enable_filtering=True,
     )
     value, index = chooser.run()
     if value is not None:
@@ -415,13 +408,13 @@ def style_purple_haze() -> None:
 
 
 def style_cyberpunk() -> None:
-    """Chooser with CYBERPUNK preset style."""
-    chooser = FilterChooser(
+    """Filtered Chooser with CYBERPUNK preset style."""
+    chooser = Chooser(
         choices=["Neon", "Chrome", "Circuit", "Matrix", "Neural"],
         title_text="🤖 Cyberpunk Style",
         header_text="Cyan and magenta neon aesthetic",
         styles=CYBERPUNK,
-        height=7,
+        enable_filtering=True,
     )
     value, index = chooser.run()
     if value is not None:
@@ -431,13 +424,13 @@ def style_cyberpunk() -> None:
 
 
 def style_matrix() -> None:
-    """Chooser with MATRIX preset style."""
-    chooser = FilterChooser(
+    """Filtered Chooser with MATRIX preset style."""
+    chooser = Chooser(
         choices=["Neo", "Trinity", "Morpheus", "Agent Smith", "Oracle"],
         title_text="💚 Matrix Style",
         header_text="Green-on-black hacker style",
         styles=MATRIX,
-        height=7,
+        enable_filtering=True,
     )
     value, index = chooser.run()
     if value is not None:
@@ -447,13 +440,13 @@ def style_matrix() -> None:
 
 
 def style_bubblegum() -> None:
-    """Chooser with BUBBLEGUM preset style."""
-    chooser = FilterChooser(
+    """Filtered Chooser with BUBBLEGUM preset style."""
+    chooser = Chooser(
         choices=["Cotton Candy", "Lollipop", "Gumdrops", "Taffy", "Rock Candy"],
         title_text="🍬 Bubblegum Style",
         header_text="Sweet pink and white inverted theme",
         styles=BUBBLEGUM,
-        height=7,
+        enable_filtering=True,
     )
     value, index = chooser.run()
     if value is not None:
@@ -463,13 +456,13 @@ def style_bubblegum() -> None:
 
 
 def style_terminal_classic() -> None:
-    """Chooser with TERMINAL_CLASSIC preset style."""
-    chooser = FilterChooser(
+    """Filtered Chooser with TERMINAL_CLASSIC preset style."""
+    chooser = Chooser(
         choices=["ls", "cd", "grep", "awk", "vim"],
         title_text="💻 Terminal Classic Style",
         header_text="Retro green-on-black terminal aesthetic",
         styles=TERMINAL_CLASSIC,
-        height=7,
+        enable_filtering=True,
     )
     value, index = chooser.run()
     if value is not None:
@@ -479,13 +472,13 @@ def style_terminal_classic() -> None:
 
 
 def style_midnight_blue() -> None:
-    """Chooser with MIDNIGHT_BLUE preset style."""
-    chooser = FilterChooser(
+    """Filtered Chooser with MIDNIGHT_BLUE preset style."""
+    chooser = Chooser(
         choices=["Moon", "Stars", "Night", "Cosmos", "Galaxy"],
         title_text="🌙 Midnight Blue Style",
         header_text="Inverted blue theme with white backgrounds",
         styles=MIDNIGHT_BLUE,
-        height=7,
+        enable_filtering=True,
     )
     value, index = chooser.run()
     if value is not None:
@@ -501,7 +494,6 @@ def style_creamsicle() -> None:
         title_text="🍊 Creamsicle Style",
         header_text="Yellow and red summer treat theme",
         styles=CREAMSICLE,
-        height=7,
     )
     value, index = chooser.run()
     if value is not None:
@@ -517,7 +509,6 @@ def header_outside_top() -> None:
         title_text="Header Outside Top",
         header_text="This header appears above the panel",
         header_location="outside_top",
-        height=5,
     )
     value, index = chooser.run()
     if value is not None:
@@ -533,7 +524,6 @@ def header_inside_left() -> None:
         title_text="Header Inside Left",
         header_text="Left header →",
         header_location="inside_left",
-        height=5,
     )
     value, index = chooser.run()
     if value is not None:
@@ -549,7 +539,6 @@ def header_outside_left() -> None:
         title_text="Header Outside Left",
         header_text="Outside →",
         header_location="outside_left",
-        height=5,
     )
     value, index = chooser.run()
     if value is not None:
@@ -565,7 +554,6 @@ def header_inside_right() -> None:
         title_text="Header Inside Right",
         header_text="← Right header",
         header_location="inside_right",
-        height=5,
     )
     value, index = chooser.run()
     if value is not None:
@@ -581,7 +569,6 @@ def header_outside_right() -> None:
         title_text="Header Outside Right",
         header_text="← Outside",
         header_location="outside_right",
-        height=5,
     )
     value, index = chooser.run()
     if value is not None:
@@ -597,7 +584,6 @@ def simple_yes_no_borderless() -> None:
         header_text="Do you want to continue?",
         header_location="outside_left",
         styles={"show_border": False},
-        height=2,
     )
     value, index = chooser.run()
     if value is not None:
@@ -665,7 +651,6 @@ def basic_multi_chooser() -> None:
     multi_chooser = MultiChooser(
         choices=choices,
         title_text="Select multiple fruits:",
-        height=8,
         width=50,
     )
     values, indices = multi_chooser.run()
@@ -692,7 +677,6 @@ def multi_chooser_with_preselection() -> None:
         choices=choices,
         title_text="Colors (red, blue, and orange pre-selected):",
         selected_indexes=[0, 2, 5],  # red, blue, orange
-        height=8,
         width=50,
     )
     values, indices = multi_chooser.run()
@@ -725,7 +709,6 @@ def multi_chooser_with_custom_styles() -> None:
         choices=choices,
         title_text="Select project components:",
         styles=custom_styles,
-        height=8,
         width=50,
     )
     values, indices = multi_chooser.run()
@@ -755,7 +738,6 @@ def multi_chooser_with_filtering() -> None:
         choices=choices,
         title_text="Multi-select with filtering enabled:",
         messages=custom_messages,
-        height=8,
         width=50,
     )
     values, indices = multi_chooser.run()
@@ -780,7 +762,6 @@ def multi_chooser_with_minimum() -> None:
         choices=choices,
         title_text="Pick at least two foods:",
         min_selected=2,
-        height=8,
         width=50,
     )
     values, indices = multi_chooser.run()
@@ -804,7 +785,6 @@ def multi_chooser_with_maximum() -> None:
         choices=choices,
         title_text="Pick up to two languages:",
         max_selected=2,
-        height=8,
         width=50,
     )
     values, indices = multi_chooser.run()
@@ -830,7 +810,6 @@ def multi_chooser_with_range() -> None:
         title_text="Pick between 2 and 4 workstreams:",
         min_selected=2,
         max_selected=4,
-        height=8,
         width=50,
     )
     values, indices = multi_chooser.run()
@@ -851,7 +830,7 @@ chooser_demos = {
         chooser_with_custom_keybindings,
         chooser_no_wrap_navigation,
     ],
-    "FilterChooser": [
+    "Filtered Chooser": [
         basic_filter_chooser,
         filter_chooser_with_custom_messages,
         filter_chooser_with_large_dataset,
@@ -867,7 +846,7 @@ chooser_demos = {
     ],
     "FileChooser": [
         basic_file_chooser,
-        min_height_file_chooser,
+        fixed_height_file_chooser,
         no_width_file_chooser,
         file_chooser_with_glob_pattern,
         file_chooser_for_directories,

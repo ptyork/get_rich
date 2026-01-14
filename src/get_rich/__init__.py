@@ -1,6 +1,5 @@
 from .base_control import BaseControl
 from .chooser import Chooser
-from .filter_chooser import FilterChooser
 from .file_chooser import FileChooser
 from .multi_chooser import MultiChooser
 from .shortcut_chooser import ShortcutChooser
@@ -24,7 +23,6 @@ __all__ = [
     "BaseControl",
     "Chooser",
     "FileChooser",
-    "FilterChooser",
     "MultiChooser",
     "ShortcutChooser",
     "ChooserStyles",

@@ -131,19 +131,50 @@ class MultiChooser(Chooser):
 
     def run(
         self, *, reader: KeyReader | None = None
-    ) -> tuple[list[str], tuple[int]] | tuple[None, None]:
-        """Run the chooser and return the selected value and index."""
+    ) -> tuple[list[str], list[int]] | tuple[None, None]:
+        """Run the chooser and return selected values and indices."""
+        if self.before_run:
+            self.before_run(self)
 
-        # confirmed = self._run_main_loop(reader)
-        sel, _ = super().run(reader=reader)
+        self._prepare_choices()
+        with reader or self._get_reader() as key_reader:
+            while True:
+                confirmed = self._choose(key_reader)
+                
+                if not confirmed:
+                    self.result = (None, None)
+                    break
+                
+                # Validate selection
+                error = self._validate_selection()
+                if error:
+                    self._error_message = error
+                    continue
+                
+                # Call confirmation hook if present
+                if self.on_confirm:
+                    if not self.on_confirm(self):
+                        # Hook wants to continue
+                        self._prepare_choices()
+                        continue
+                
+                # All good - collect selected items
+                values = []
+                indexes = []
+                for choice in self.all_choices:
+                    if choice.is_selected:
+                        values.append(choice.value)
+                        indexes.append(choice.index)
+                
+                # Set result
+                if not values:
+                    self.result = (None, None)
+                else:
+                    self.result = (values, indexes)
+                break
 
-        if not sel:
-            return (None, None)
+        if self.after_run:
+            self.after_run(self)
 
-        values = []
-        indexes = []
-        for choice in self.all_choices:
-            if choice.is_selected:
-                values.append(choice.value)
-                indexes.append(choice.index)
-        return values, indexes
+        # Return the result
+        return self.result  # type: ignore[return-value]

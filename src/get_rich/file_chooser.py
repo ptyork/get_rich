@@ -8,7 +8,7 @@ import sys
 from rich.console import Console
 from rich.text import Text
 
-from . import Chooser, FilterChooser
+from . import Chooser
 from .key_reader import KeyReader
 from .styles import ChooserStyles
 from .messages import ChooserMessages
@@ -50,7 +50,7 @@ def _get_volumes_win32():
     return None
 
 
-class FileChooser(FilterChooser):
+class FileChooser(Chooser):
     """A chooser that allows selection of a file or directory."""
 
     def __init__(
@@ -75,7 +75,6 @@ class FileChooser(FilterChooser):
         wrap_navigation: bool = True,
         styles: ChooserStyles | None = None,
         messages: ChooserMessages | None = None,
-        disable_filtering: bool = False,
         console: Console | None = None,
         transient: bool = True,
         reader: KeyReader | None = None,
@@ -135,7 +134,7 @@ class FileChooser(FilterChooser):
             wrap_navigation=wrap_navigation,
             styles=styles,
             messages=messages,
-            disable_filtering=disable_filtering,
+            enable_filtering=True,
             console=console,
             transient=transient,
             reader=reader,
@@ -151,12 +150,12 @@ class FileChooser(FilterChooser):
     def _prepare_choices(self) -> None:
         """Build the file/directory list and prepare for display."""
         # Determine current directory and selected file
-        selected_file = ""
+        highlighted_file = ""
         path = self.current_path = self.current_path.resolve()
         if not path.exists():
             path = self.current_path = Path(".").resolve()
         elif path.is_file():
-            selected_file = path.name
+            highlighted_file = path.name
             path = self.current_path = path.parent.resolve()
 
         dirs = []
@@ -222,8 +221,8 @@ class FileChooser(FilterChooser):
                 all.sort(key=str.casefold)
             if all:
                 selected_index = len(text_choices)  # first non-special entry
-                if selected_file in all:
-                    selected_index += all.index(selected_file)
+                if highlighted_file in all:
+                    selected_index += all.index(highlighted_file)
 
         text_choices.extend([Text.from_markup(name) for name in all])
 
@@ -231,35 +230,38 @@ class FileChooser(FilterChooser):
         self.all_choices = [
             Chooser.Choice(i, text) for i, text in enumerate(text_choices)
         ]
-        self.selected_index = selected_index
+        self.highlighted_index = self.highlighted_filtered_index = selected_index
 
         # Dynamically enable/disable filtering based on list size
         # Calculate visible count to determine if filtering is needed
         if self.auto_filter:
             visible_count = self._visible_count(self.all_choices, 0)
-            if len(self.all_choices) <= visible_count:
-                self.disable_filtering = True
+            if len(self.all_choices) > visible_count:
+                # Only enable filtering if we have more items than visible space
+                self.enable_filtering = True
             else:
-                self.disable_filtering = False
+                # Disable filtering if everything fits on screen
+                self.enable_filtering = False
+        else:
+            # If auto_filter is False, always enable filtering
+            self.enable_filtering = True
 
         # Call parent to apply text filtering and build filtered_choices
         super()._prepare_choices()
 
     def _on_confirm(self, chooser: "FileChooser") -> bool:
         selected_value = str(chooser.selected_value)
-        selected_index = chooser.selected_index
+        selected_index = chooser.highlighted_index
         
         if self.choose_dirs:
             if selected_index != 0:
                 selected_name = selected_value.split()[0]
                 self.current_path = Path(self.current_path / selected_name).resolve()
-                # _adjust_to_selection() in main loop will call _prepare_choices()
                 return False
         else:
             selected_name = selected_value.split()[0]
             self.current_path = Path(self.current_path / selected_name).resolve()
             if self.current_path.is_dir():
-                # _adjust_to_selection() in main loop will call _prepare_choices()
                 return False
 
         return True

@@ -2,7 +2,7 @@ from io import StringIO
 
 from rich.console import Console
 
-from get_rich import FilterChooser
+from get_rich import Chooser
 
 
 class FakeReader:
@@ -29,8 +29,9 @@ def fake_console() -> Console:
 
 def test_filtering_limits_choices_before_select():
     reader = FakeReader(["b", "ENTER"])
-    chooser = FilterChooser(
+    chooser = Chooser(
         choices=["apple", "banana", "cherry"],
+        enable_filtering=True,
         console=fake_console(),
     )
 
@@ -41,8 +42,9 @@ def test_filtering_limits_choices_before_select():
 
 def test_filter_remove_all_choices_before_select():
     reader = FakeReader(["z", "ENTER"])
-    chooser = FilterChooser(
+    chooser = Chooser(
         choices=["apple", "banana", "cherry"],
+        enable_filtering=True,
         console=fake_console(),
     )
 
@@ -62,8 +64,10 @@ def test_filter_chooser_uses_default_styles():
     """Test that FilterChooser applies default styles including filter-specific ones."""
     from get_rich.styles import _merge_styles
 
-    chooser = FilterChooser(
-        choices=["apple", "banana", "cherry"], console=fake_console()
+    chooser = Chooser(
+        choices=["apple", "banana", "cherry"], 
+        enable_filtering=True,
+        console=fake_console()
     )
     defaults = _merge_styles()
 
@@ -81,8 +85,11 @@ def test_filter_chooser_applies_custom_styles():
         "selection_caret": "❯",
     }
 
-    chooser = FilterChooser(
-        choices=["apple", "banana"], styles=custom_styles, console=fake_console()
+    chooser = Chooser(
+        choices=["apple", "banana"], 
+        enable_filtering=True,
+        styles=custom_styles, 
+        console=fake_console()
     )
 
     # Custom styles are applied
@@ -101,7 +108,7 @@ def test_filter_cursor_moved_to_styles():
     """Test that filter_cursor is stored in styles, not as an init parameter."""
     from get_rich.styles import _merge_styles
 
-    chooser = FilterChooser(choices=["a", "b"], console=fake_console())
+    chooser = Chooser(choices=["a", "b"], enable_filtering=True, console=fake_console())
 
     # filter_cursor should be in styles
     assert "filter_cursor" in dir(chooser.styles)
@@ -120,7 +127,7 @@ def test_filter_chooser_uses_default_messages():
     """Test that FilterChooser applies default messages."""
     from get_rich.messages import _merge_messages
 
-    chooser = FilterChooser(choices=["apple", "banana"], console=fake_console())
+    chooser = Chooser(choices=["apple", "banana"], enable_filtering=True, console=fake_console())
     defaults = _merge_messages()
 
     # Verify filter-specific messages are present
@@ -137,8 +144,11 @@ def test_filter_chooser_applies_custom_messages():
         "filtered_from": "matching",
     }
 
-    chooser = FilterChooser(
-        choices=["apple", "banana"], messages=custom_messages, console=fake_console()
+    chooser = Chooser(
+        choices=["apple", "banana"], 
+        enable_filtering=True,
+        messages=custom_messages, 
+        console=fake_console()
     )
 
     assert chooser.messages.filter_label == "Search: "
@@ -150,7 +160,7 @@ def test_filter_label_moved_to_messages():
     """Test that filter_label is stored in messages, not as an init parameter."""
     from get_rich.messages import _merge_messages
 
-    chooser = FilterChooser(choices=["a", "b"], console=fake_console())
+    chooser = Chooser(choices=["a", "b"], enable_filtering=True, console=fake_console())
 
     # filter_label should be in messages
     assert "filter_label" in dir(chooser.messages)
@@ -167,8 +177,9 @@ def test_items_count_message_formatting():
         "filtered_from": "de",
     }
 
-    chooser = FilterChooser(
+    chooser = Chooser(
         choices=["a", "b", "c"],
+        enable_filtering=True,
         messages=custom_messages,
         console=fake_console(),
     )
@@ -185,8 +196,9 @@ def test_filtered_from_message_used_in_footer():
         "filtered_from": "out of",
     }
 
-    chooser = FilterChooser(
+    chooser = Chooser(
         choices=["apple", "apricot", "banana", "blueberry"],
+        enable_filtering=True,
         messages=custom_messages,
         console=fake_console(),
     )
@@ -202,8 +214,11 @@ def test_filter_chooser_partial_message_override():
         "items_count": "{count} entries",
     }
 
-    chooser = FilterChooser(
-        choices=["a"], messages=partial_messages, console=fake_console()
+    chooser = Chooser(
+        choices=["a"], 
+        enable_filtering=True,
+        messages=partial_messages, 
+        console=fake_console()
     )
 
     # Custom message applied
@@ -228,7 +243,7 @@ def test_filter_chooser_empty_choices_renders_gracefully():
 
     sio = StringIO()
     console = Console(file=sio, force_terminal=True, color_system=None, width=80)
-    chooser = FilterChooser(choices=[], console=console)
+    chooser = Chooser(choices=[], enable_filtering=True, console=console)
     reader = FakeReader(["ENTER"])
     result = chooser.run(reader=reader)
     output = sio.getvalue()
@@ -240,7 +255,7 @@ def test_filter_chooser_empty_choices_renders_gracefully():
 def test_filter_chooser_single_choice_select():
     """Test that FilterChooser with one choice can be selected and nav instructions are present in config."""
     console = Console(file=StringIO(), force_terminal=True, color_system=None, width=80)
-    chooser = FilterChooser(choices=["one"], console=console)
+    chooser = Chooser(choices=["one"], enable_filtering=True, console=console)
     reader = FakeReader(["ENTER"])
     result = chooser.run(reader=reader)
     assert result == ("one", 0)

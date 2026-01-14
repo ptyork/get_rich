@@ -156,7 +156,7 @@ class ShortcutChooser(Chooser):
                 Chooser.Choice(
                     index=i,
                     value=self.all_choices[i].value,
-                    is_highlighted=(i == self.selected_index),
+                    is_highlighted=(i == self.highlighted_index),
                     shortcut_key=self.shortcut_keys[i] if (self.show_shortcuts and i < len(self.shortcut_keys)) else None
                 )
             )
@@ -192,7 +192,7 @@ class ShortcutChooser(Chooser):
         """Handle shortcut keys for direct selection."""
         if key in self.shortcut_key_to_index:
             # Set the filtered index to the shortcut's target
-            self.selected_filtered_index = self.shortcut_key_to_index[key]
+            self.highlighted_filtered_index = self.shortcut_key_to_index[key]
             self._set_highlighted()
             if self.no_confirm:
                 # Immediately confirm selection
