@@ -154,7 +154,7 @@ class Chooser(BaseControl):
         self.filter_text: str = ""
         self.filtered_choices: list[Chooser.Choice] = []
 
-        self.highlighted_filtered_index: int = 0
+        self._highlighted_index: int = 0
         self._highlighted_choice: Chooser.Choice | None = None
         self.on_confirm: Callable[[str, int], bool] | None = on_confirm
         self.result: tuple[str, int] | tuple[None, None] | None = None
@@ -170,12 +170,10 @@ class Chooser(BaseControl):
         # PRE-select choices if requested
         if selected_index is not None and 0 <= selected_index < len(self.all_choices):
             self.highlighted_choice = self.all_choices[selected_index]
-            self.highlighted_filtered_index = selected_index
         elif selected_value:
             for i, choice in enumerate(self.all_choices):
                 if choice.value.plain.lower() == selected_value.lower():
                     self.highlighted_choice = choice
-                    self.highlighted_filtered_index = i
                     break
 
     ################################################################@##########
@@ -196,6 +194,8 @@ class Chooser(BaseControl):
         if choice is not None:
             choice.is_highlighted = True
         self._highlighted_choice = choice
+        if self.on_change:
+            self.on_change(self)
 
     ################################################################@##########
     # VIRTUAL: _get_display_choices
@@ -213,8 +213,12 @@ class Chooser(BaseControl):
         """Prepare choices for display. Can be overridden by subclasses for filtering."""
         if self.enable_filtering:
             self._filter_choices()
-        else:
-            self._set_highlighted()
+        elif not self.highlighted_choice:
+            if self.all_choices:
+                self.highlighted_choice = self.all_choices[0]
+            else:
+                self.highlighted_choice = None
+
 
     ################################################################@##########
     # VIRTUAL: _validate_selection
@@ -312,6 +316,11 @@ class Chooser(BaseControl):
     def _render(self) -> RenderableType:
         display_choices = self._get_display_choices()
 
+        if display_choices and self.highlighted_choice in display_choices:
+            self._highlighted_index = display_choices.index(self.highlighted_choice)
+        else:
+            self._highlighted_index = 0
+
         # Parse header location
         is_header_inside = self.header_location.startswith("inside_")
         is_header_side = (
@@ -371,7 +380,7 @@ class Chooser(BaseControl):
         else:
             # Position selection SCROLL_TOP_OFFSET rows from top
             adjusted_top_offset = min(self.SCROLL_TOP_OFFSET, max_items // 2)
-            start = max(0, self.highlighted_filtered_index - adjusted_top_offset)
+            start = max(0, self._highlighted_index - adjusted_top_offset)
 
             # Check if arrows will be needed and reserve rows for them
             show_up_arrow = start > 0
@@ -502,33 +511,6 @@ class Chooser(BaseControl):
         return renderable
 
     ################################################################@##########
-    # UTILITY: _filter_choices
-    ################################################################@##########
-    def _filter_choices(self) -> None:
-        """Apply current filter to choices."""
-        # If no filter text, show all choices
-        if not self.filter_text:
-            self.filtered_choices = self.all_choices
-        else:
-            # Apply text filter
-            filter_lower = self.filter_text.lower()
-            self.filtered_choices = [
-                choice
-                for choice in self.all_choices
-                if filter_lower in choice.value.plain.lower()
-            ]
-
-        # Adjust filtered index to match selected choice
-        display_choices = self._get_display_choices()
-        if self.highlighted_choice and self.highlighted_choice in display_choices:
-            self.highlighted_filtered_index = display_choices.index(
-                self.highlighted_choice
-            )
-        else:
-            self.highlighted_filtered_index = 0
-        self._set_highlighted()
-
-    ################################################################@##########
     # UTILITY: _wrap_outside_side_header
     ################################################################@##########
     def _wrap_outside_side_header(
@@ -614,20 +596,6 @@ class Chooser(BaseControl):
         return Panel(table, **panel_kwargs)
 
     ################################################################@##########
-    # UTILITY: _set_highlighted
-    ################################################################@##########
-    def _set_highlighted(self) -> None:
-        display_choices = self._get_display_choices()
-        if display_choices:
-            choice = display_choices[self.highlighted_filtered_index]
-            self.highlighted_choice = choice
-        else:
-            self.highlighted_choice = None
-
-        if self.on_change:
-            self.on_change(self)
-
-    ################################################################@##########
     # UTILITY: _visible_count
     ################################################################@##########
     def _visible_count(
@@ -675,6 +643,32 @@ class Chooser(BaseControl):
         return max(1, available_rows)
 
     ################################################################@##########
+    # UTILITY: _filter_choices
+    ################################################################@##########
+    def _filter_choices(self) -> None:
+        """Apply current filter to choices."""
+        # If no filter text, show all choices
+        if not self.filter_text:
+            self.filtered_choices = self.all_choices
+        else:
+            # Apply text filter
+            filter_lower = self.filter_text.lower()
+            self.filtered_choices = [
+                choice
+                for choice in self.all_choices
+                if filter_lower in choice.value.plain.lower()
+            ]
+
+        # Adjust filtered index to match selected choice
+        display_choices = self._get_display_choices()
+        if self.highlighted_choice and self.highlighted_choice in display_choices:
+            pass
+        elif display_choices:
+            self.highlighted_choice = display_choices[0]
+        else:
+            self.highlighted_choice = None
+
+    ################################################################@##########
     # INTERNAL: _choose
     ################################################################@##########
     def _choose(self, reader: KeyReader) -> bool:
@@ -718,38 +712,39 @@ class Chooser(BaseControl):
                     key = intercepted
 
                 display_choices = self._get_display_choices()
+                update_choice = True
 
                 if key in self.keybindings.get("up", []):
-                    if self.highlighted_filtered_index > 0:
-                        self.highlighted_filtered_index -= 1
+                    if self._highlighted_index > 0:
+                        self._highlighted_index -= 1
                     elif self.wrap_navigation and display_choices:
-                        self.highlighted_filtered_index = len(display_choices) - 1
+                        self._highlighted_index = len(display_choices) - 1
 
                 elif key in self.keybindings.get("down", []):
-                    if self.highlighted_filtered_index < len(display_choices) - 1:
-                        self.highlighted_filtered_index += 1
+                    if self._highlighted_index < len(display_choices) - 1:
+                        self._highlighted_index += 1
                     elif self.wrap_navigation and display_choices:
-                        self.highlighted_filtered_index = 0
+                        self._highlighted_index = 0
 
                 elif key in self.keybindings.get("home", []):
-                    self.highlighted_filtered_index = 0
+                    self._highlighted_index = 0
 
                 elif key in self.keybindings.get("end", []):
                     if display_choices:
-                        self.highlighted_filtered_index = len(display_choices) - 1
+                        self._highlighted_index = len(display_choices) - 1
 
                 elif key in self.keybindings.get("page_up", []):
                     step = max(1, self._visible_count(display_choices) - 1)
-                    self.highlighted_filtered_index = max(
-                        0, self.highlighted_filtered_index - step
+                    self._highlighted_index = max(
+                        0, self._highlighted_index - step
                     )
 
                 elif key in self.keybindings.get("page_down", []):
                     if display_choices:
                         step = max(1, self._visible_count(display_choices) - 1)
-                        self.highlighted_filtered_index = min(
+                        self._highlighted_index = min(
                             len(display_choices) - 1,
-                            self.highlighted_filtered_index + step,
+                            self._highlighted_index + step,
                         )
 
                 elif key in self.keybindings.get("confirm", []):
@@ -761,15 +756,17 @@ class Chooser(BaseControl):
                 else:
                     if self._handle_other_key(key):
                         return True
+                    update_choice = False
 
-                self._set_highlighted()
+                if display_choices and update_choice:
+                    self.highlighted_choice = display_choices[self._highlighted_index]
 
                 live.update(self._render())
                 live.refresh()
 
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
+    ################################################################@##########
+    # PUBLIC: run
+    ################################################################@##########
     def run(
         self, *, reader: KeyReader | None = None
     ) -> tuple[str, int] | tuple[None, None]:
@@ -778,6 +775,7 @@ class Chooser(BaseControl):
             self.before_run(self)
 
         self._prepare_choices()
+
         with reader or self._get_reader() as key_reader:
             while True:
                 confirmed = self._choose(key_reader)
@@ -800,7 +798,6 @@ class Chooser(BaseControl):
                         continue
 
                 # All good - set result and return
-                self._set_highlighted()
                 choice = self.highlighted_choice
                 if choice is None:
                     self.result = (None, None)

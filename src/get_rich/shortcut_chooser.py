@@ -157,8 +157,9 @@ class ShortcutChooser(Chooser):
         """Handle shortcut keys for direct selection."""
         if key in self.shortcut_key_to_index:
             # Set the filtered index to the shortcut's target
-            self.highlighted_filtered_index = self.shortcut_key_to_index[key]
-            self._set_highlighted()
+            index = self.shortcut_key_to_index[key]
+            self.highlighted_choice = self.all_choices[index]
+
             if self.no_confirm:
                 # Immediately confirm selection
                 return True

@@ -83,7 +83,6 @@ class MultiChooser(Chooser):
     def _handle_other_key(self, key: str) -> str | None:
         """Handle space to toggle selection of current item."""
         if key == "SPACE":
-            self._set_highlighted()
             choice = self.highlighted_choice
             choice.is_selected = not choice.is_selected
             if self.on_change:

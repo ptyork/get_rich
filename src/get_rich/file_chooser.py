@@ -230,7 +230,7 @@ class FileChooser(Chooser):
         self.all_choices = [
             Chooser.Choice(i, text) for i, text in enumerate(text_choices)
         ]
-        self.highlighted_filtered_index = selected_index
+
         if selected_index < len(self.all_choices):
             self.highlighted_choice = self.all_choices[selected_index]
 
@@ -250,6 +250,7 @@ class FileChooser(Chooser):
 
         # Call parent to apply text filtering and build filtered_choices
         super()._prepare_choices()
+        
 
     def _on_confirm(self, chooser: "FileChooser") -> bool:
         selected_value = str(chooser.highlighted_choice)
